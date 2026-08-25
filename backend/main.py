@@ -16,9 +16,9 @@ from app.routers import pdf_router, question_router, evaluation_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle hook — inicializa recursos na startup."""
-    print(f"🐾 vetQz API starting on allowed origins: {settings.allowed_origins_list}")
+    print(f"[vetQz] API starting on allowed origins: {settings.allowed_origins_list}")
     yield
-    print("🐾 vetQz API shutting down.")
+    print("[vetQz] API shutting down.")
 
 
 app = FastAPI(
