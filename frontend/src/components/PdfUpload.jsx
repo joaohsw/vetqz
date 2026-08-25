@@ -1,11 +1,11 @@
 /**
- * PdfUpload — Componente de upload de PDF com drag-and-drop.
+ * PdfUpload — PDF upload with drag-and-drop.
  *
- * SEGURANÇA: Validação client-side de MIME type e tamanho (primeira camada).
- * O backend (pdf_router.py) realiza validação adicional.
+ * Clean drop zone with icon placeholder, validation feedback,
+ * no emoji, proper disabled/loading states.
  */
 
-import { Upload, FileText, X, AlertCircle, Check } from 'lucide-react';
+import { Upload, FileText, X, AlertCircle, ArrowRight } from 'lucide-react';
 import { useFileUpload } from '../hooks/useFileUpload';
 
 export default function PdfUpload({ onUpload, isUploading = false }) {
@@ -19,12 +19,7 @@ export default function PdfUpload({ onUpload, isUploading = false }) {
   };
 
   return (
-    <div className="animate-slide-up">
-      <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-        <FileText className="w-5 h-5 text-emerald-400" />
-        Upload do Material
-      </h2>
-
+    <div className="animate-enter">
       {/* Drop zone */}
       <div
         id="pdf-drop-zone"
@@ -32,13 +27,10 @@ export default function PdfUpload({ onUpload, isUploading = false }) {
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         className={`
-          glass-card relative p-8 text-center cursor-pointer
-          transition-all duration-300 ease-out
-          ${isDragging
-            ? 'border-emerald-400 bg-emerald-500/10 scale-[1.02]'
-            : 'hover:border-emerald-500/50 hover:bg-bg-glass'
-          }
-          ${error ? 'border-danger/50' : ''}
+          card relative p-10 text-center cursor-pointer
+          transition-all duration-200 ease-out
+          ${isDragging ? 'border-teal-400 bg-teal-500/5' : ''}
+          ${error ? 'border-danger/40' : ''}
         `}
       >
         <input
@@ -51,34 +43,34 @@ export default function PdfUpload({ onUpload, isUploading = false }) {
         />
 
         {!file ? (
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-col items-center gap-4">
             <div className={`
-              w-16 h-16 rounded-2xl flex items-center justify-center
-              transition-all duration-300
+              w-14 h-14 rounded-xl border-2 border-dashed flex items-center justify-center
+              transition-colors duration-200
               ${isDragging
-                ? 'bg-emerald-500/20 scale-110'
-                : 'bg-bg-glass'
+                ? 'border-teal-400 text-teal-400'
+                : 'border-border-default text-text-3'
               }
             `}>
-              <Upload className={`w-7 h-7 transition-colors ${isDragging ? 'text-emerald-400' : 'text-text-secondary'}`} />
+              <Upload className="w-6 h-6" />
             </div>
             <div>
-              <p className="font-medium text-text-primary">
-                {isDragging ? 'Solte o arquivo aqui' : 'Arraste seu PDF ou clique para selecionar'}
+              <p className="font-['Plus_Jakarta_Sans'] font-600 text-text-1">
+                {isDragging ? 'Solte o arquivo aqui' : 'Arraste um PDF ou clique para selecionar'}
               </p>
-              <p className="text-sm text-text-muted mt-1">
-                Apenas PDF • Máximo 15MB
+              <p className="text-sm text-text-3 mt-1">
+                Apenas PDF, até 15 MB
               </p>
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0">
-              <FileText className="w-6 h-6 text-emerald-400" />
+          <div className="flex items-center gap-4 text-left">
+            <div className="w-10 h-10 rounded-lg bg-teal-500/10 flex items-center justify-center shrink-0">
+              <FileText className="w-5 h-5 text-teal-400" />
             </div>
-            <div className="text-left flex-1 min-w-0">
-              <p className="font-medium truncate">{file.name}</p>
-              <p className="text-sm text-text-secondary">
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm truncate text-text-1">{file.name}</p>
+              <p className="text-xs text-text-3">
                 {(file.size / 1024 / 1024).toFixed(2)} MB
               </p>
             </div>
@@ -88,48 +80,40 @@ export default function PdfUpload({ onUpload, isUploading = false }) {
                 e.stopPropagation();
                 clearFile();
               }}
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              className="p-1.5 rounded-md hover:bg-surface-3 transition-colors text-text-3 hover:text-text-2"
               disabled={isUploading}
             >
-              <X className="w-4 h-4 text-text-secondary" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         )}
       </div>
 
-      {/* Error message */}
+      {/* Error */}
       {error && (
-        <div className="mt-3 flex items-start gap-2 text-sm text-danger bg-danger/10 rounded-lg px-4 py-3">
+        <div className="mt-3 flex items-start gap-2 text-sm text-danger bg-danger-muted/20 rounded-lg px-4 py-3">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Upload button */}
+      {/* Submit */}
       {file && !error && (
         <button
           id="pdf-upload-btn"
           onClick={handleSubmit}
           disabled={isUploading}
-          className={`
-            mt-4 w-full py-3 px-6 rounded-xl font-semibold text-white
-            transition-all duration-300
-            ${isUploading
-              ? 'bg-emerald-600/50 cursor-not-allowed'
-              : 'bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 hover:shadow-lg hover:shadow-emerald-500/25 active:scale-[0.98]'
-            }
-            flex items-center justify-center gap-2
-          `}
+          className="btn-primary w-full mt-4"
         >
           {isUploading ? (
             <>
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Processando PDF...
+              <span className="spinner" />
+              Processando...
             </>
           ) : (
             <>
-              <Check className="w-5 h-5" />
-              Enviar e Processar
+              Enviar e processar
+              <ArrowRight className="w-4 h-4" />
             </>
           )}
         </button>

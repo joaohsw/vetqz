@@ -5,6 +5,7 @@
 .env.local
 .env.production
 PROJECT_CONTEXT.md
+SKILL.md
 
 # ========================
 # Python / Backend

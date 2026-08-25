@@ -1,10 +1,11 @@
 /**
- * QuestionCard — Exibe a pergunta gerada pela IA.
+ * QuestionCard — Displays the AI-generated question.
  *
- * Inclui animação de entrada, texto da pergunta, e botão de nova pergunta.
+ * Clean card with accent border, expandable source context.
+ * Skeleton loader during generation.
  */
 
-import { HelpCircle, RefreshCw, BookOpen } from 'lucide-react';
+import { RefreshCw, BookOpen } from 'lucide-react';
 
 export default function QuestionCard({
   question,
@@ -12,18 +13,14 @@ export default function QuestionCard({
   onNewQuestion,
   isLoading = false,
 }) {
-  // Skeleton loader durante carregamento
   if (isLoading) {
     return (
-      <div className="glass-card p-6 gradient-border animate-slide-up">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="skeleton w-5 h-5 rounded" />
-          <div className="skeleton w-40 h-5" />
-        </div>
+      <div className="card p-6 animate-enter">
+        <div className="skeleton w-32 h-4 mb-5" />
         <div className="space-y-3">
-          <div className="skeleton w-full h-5" />
-          <div className="skeleton w-4/5 h-5" />
-          <div className="skeleton w-3/5 h-5" />
+          <div className="skeleton w-full h-4" />
+          <div className="skeleton w-4/5 h-4" />
+          <div className="skeleton w-3/5 h-4" />
         </div>
       </div>
     );
@@ -32,37 +29,36 @@ export default function QuestionCard({
   if (!question) return null;
 
   return (
-    <div className="glass-card p-6 gradient-border animate-slide-up">
+    <div className="card card-accent p-6 animate-enter">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-emerald-400 uppercase tracking-wider">
-          <HelpCircle className="w-4 h-4" />
+        <h3 className="text-xs font-['Plus_Jakarta_Sans'] font-600 text-teal-400 uppercase tracking-widest">
           Pergunta
         </h3>
         <button
           id="new-question-btn"
           onClick={onNewQuestion}
           disabled={isLoading}
-          className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-emerald-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-bg-glass"
+          className="flex items-center gap-1.5 text-xs text-text-3 hover:text-teal-400 transition-colors px-2 py-1 rounded-md hover:bg-surface-2"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          Nova Pergunta
+          <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
+          Nova
         </button>
       </div>
 
-      {/* Question text */}
-      <p className="text-lg font-medium leading-relaxed text-text-primary">
+      {/* Question */}
+      <p className="text-lg font-['Plus_Jakarta_Sans'] font-600 leading-relaxed text-text-1 text-pretty">
         {question}
       </p>
 
-      {/* Chunk context (collapsed by default) */}
+      {/* Source context */}
       {chunkUsed && (
-        <details className="mt-4 group">
-          <summary className="flex items-center gap-2 text-xs text-text-muted cursor-pointer hover:text-text-secondary transition-colors select-none">
-            <BookOpen className="w-3.5 h-3.5" />
-            Ver trecho do material usado
+        <details className="mt-5 group">
+          <summary className="flex items-center gap-1.5 text-xs text-text-3 cursor-pointer hover:text-text-2 transition-colors select-none">
+            <BookOpen className="w-3 h-3" />
+            Ver trecho do material
           </summary>
-          <div className="mt-2 p-3 rounded-lg bg-bg-glass text-xs text-text-secondary leading-relaxed max-h-32 overflow-y-auto">
+          <div className="mt-2 p-3 rounded-lg bg-surface-0 text-xs text-text-3 leading-relaxed max-h-28 overflow-y-auto border border-border-subtle">
             {chunkUsed}
           </div>
         </details>

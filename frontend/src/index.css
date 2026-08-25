@@ -2,104 +2,134 @@
 
 /* ============================================================
    vetQz — Design System
-   Paleta: Verde esmeralda + Azul profundo + Fundo escuro
-   Tipografia: Inter (Google Fonts)
-   Estilo: Glassmorphism, gradientes, micro-animações
+   
+   School: Warm Humanist × Modern Tool
+   Anchor: Stripe Press warmth meets Linear tool precision
+   
+   Palette: Deep teal primary + warm gold accent + warm darks
+   Typography: Plus Jakarta Sans (headings) + DM Sans (body)
+   Radius: Medium (12px cards, 8px inputs, 24px containers)
+   Motion: ease-out, 200-400ms, user-triggered
    ============================================================ */
 
 @theme {
-  --color-bg-primary: #0B1120;
-  --color-bg-secondary: #111827;
-  --color-bg-card: rgba(17, 24, 39, 0.7);
-  --color-bg-glass: rgba(255, 255, 255, 0.05);
-  --color-border-glass: rgba(255, 255, 255, 0.1);
+  /* ── Color System (oklch-derived, no rogue hues) ── */
 
-  --color-emerald-400: #34D399;
-  --color-emerald-500: #10B981;
-  --color-emerald-600: #059669;
+  /* Primary — deep teal, authoritative yet approachable */
+  --color-teal-300: oklch(0.75 0.12 185);
+  --color-teal-400: oklch(0.65 0.13 185);
+  --color-teal-500: oklch(0.55 0.13 185);
+  --color-teal-600: oklch(0.45 0.12 185);
 
-  --color-blue-400: #60A5FA;
-  --color-blue-500: #3B82F6;
-  --color-blue-900: #1E3A5F;
+  /* Accent — warm gold, energizing without being aggressive */
+  --color-gold-300: oklch(0.82 0.1 85);
+  --color-gold-400: oklch(0.75 0.12 85);
+  --color-gold-500: oklch(0.68 0.13 85);
 
-  --color-text-primary: #F9FAFB;
-  --color-text-secondary: #9CA3AF;
-  --color-text-muted: #6B7280;
+  /* Surfaces — warm-tinted darks (not pure neutral) */
+  --color-surface-0: oklch(0.13 0.01 250);
+  --color-surface-1: oklch(0.16 0.01 250);
+  --color-surface-2: oklch(0.19 0.012 250);
+  --color-surface-3: oklch(0.22 0.012 250);
 
-  --color-danger: #EF4444;
-  --color-warning: #F59E0B;
-  --color-success: #10B981;
+  /* Text — warm off-whites, never pure white */
+  --color-text-1: oklch(0.93 0.01 80);
+  --color-text-2: oklch(0.72 0.01 80);
+  --color-text-3: oklch(0.52 0.01 80);
+
+  /* Borders */
+  --color-border-subtle: oklch(0.25 0.01 250);
+  --color-border-default: oklch(0.30 0.01 250);
+
+  /* Semantic */
+  --color-danger: oklch(0.65 0.2 25);
+  --color-danger-muted: oklch(0.35 0.08 25);
+  --color-warning: oklch(0.75 0.15 70);
+  --color-success: oklch(0.65 0.15 160);
 }
 
-/* Base */
+/* ── Base ── */
+
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: var(--color-bg-primary);
-  color: var(--color-text-primary);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background-color: var(--color-surface-0);
+  color: var(--color-text-1);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
 }
 
-/* Glassmorphism card */
-.glass-card {
-  background: var(--color-bg-glass);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--color-border-glass);
-  border-radius: 1rem;
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
-/* Animated gradient border */
-.gradient-border {
+/* ── Card system ── */
+
+.card {
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 12px;
+  transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+
+.card:hover {
+  border-color: var(--color-border-default);
+}
+
+.card-elevated {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px oklch(0 0 0 / 0.2), 0 4px 12px oklch(0 0 0 / 0.1);
+}
+
+/* ── Accent border (left) — used sparingly for active/featured states only ── */
+
+.card-accent {
+  border-left: 3px solid var(--color-teal-400);
+}
+
+/* ── Recording pulse ── */
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+.recording-indicator {
   position: relative;
-  border-radius: 1rem;
-  overflow: hidden;
 }
 
-.gradient-border::before {
+.recording-indicator::after {
   content: '';
   position: absolute;
-  inset: 0;
-  padding: 1px;
-  border-radius: inherit;
-  background: linear-gradient(135deg, var(--color-emerald-500), var(--color-blue-500), var(--color-emerald-400));
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  -webkit-mask-composite: xor;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--color-danger);
+  animation: pulse-ring 1.5s ease-out infinite;
   pointer-events: none;
 }
 
-/* Pulse animation for recording button */
-@keyframes recording-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
-  }
-  50% {
-    box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
-  }
+/* ── Score circle animation ── */
+
+@keyframes draw-score {
+  from { stroke-dashoffset: 283; }
 }
 
-.animate-recording-pulse {
-  animation: recording-pulse 1.5s ease-in-out infinite;
+.animate-score {
+  animation: draw-score 1s ease-out forwards;
 }
 
-/* Score circle animation */
-@keyframes score-fill {
-  from {
-    stroke-dashoffset: 283;
-  }
-}
+/* ── Enter animation ── */
 
-.animate-score-fill {
-  animation: score-fill 1.2s ease-out forwards;
-}
-
-/* Slide-up fade-in animation */
-@keyframes slide-up {
+@keyframes enter {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -107,43 +137,153 @@ body {
   }
 }
 
-.animate-slide-up {
-  animation: slide-up 0.5s ease-out forwards;
+.animate-enter {
+  animation: enter 0.35s ease-out forwards;
 }
 
-/* Skeleton loader */
+/* Staggered children */
+.stagger > :nth-child(1) { animation-delay: 0ms; }
+.stagger > :nth-child(2) { animation-delay: 60ms; }
+.stagger > :nth-child(3) { animation-delay: 120ms; }
+.stagger > :nth-child(4) { animation-delay: 180ms; }
+
+/* ── Skeleton loader ── */
+
 @keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 .skeleton {
   background: linear-gradient(
     90deg,
-    var(--color-bg-glass) 25%,
-    rgba(255, 255, 255, 0.08) 50%,
-    var(--color-bg-glass) 75%
+    var(--color-surface-2) 25%,
+    var(--color-surface-3) 50%,
+    var(--color-surface-2) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 0.5rem;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
+/* ── Focus ring ── */
+
+:focus-visible {
+  outline: 2px solid var(--color-teal-400);
+  outline-offset: 2px;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
+
+/* ── Button system ── */
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-surface-0);
+  background: var(--color-teal-500);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease-out, transform 0.1s ease-out;
+  text-wrap: nowrap;
 }
+
+.btn-primary:hover {
+  background: var(--color-teal-400);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-text-2);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease-out, border-color 0.2s ease-out, color 0.2s ease-out;
+}
+
+.btn-secondary:hover {
+  background: var(--color-surface-3);
+  border-color: var(--color-border-default);
+  color: var(--color-text-1);
+}
+
+.btn-secondary:active {
+  transform: scale(0.98);
+}
+
+/* ── Input system ── */
+
+.input-field {
+  width: 100%;
+  background: var(--color-surface-0);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 0.875rem;
+  color: var(--color-text-1);
+  line-height: 1.6;
+  resize: none;
+  transition: border-color 0.2s ease-out;
+}
+
+.input-field::placeholder {
+  color: var(--color-text-3);
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--color-teal-400);
+}
+
+/* ── Scrollbar (quiet) ── */
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-text-muted);
-  border-radius: 3px;
+  background: var(--color-border-default);
+  border-radius: 2px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-secondary);
+
+/* ── Spinner ── */
+
+.spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid oklch(1 0 0 / 0.2);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Text balance ── */
+.text-pretty {
+  text-wrap: pretty;
 }

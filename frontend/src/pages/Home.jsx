@@ -1,22 +1,22 @@
 /**
- * Home — Página principal do vetQz.
+ * Home — Main page orchestrating the quiz flow.
  *
- * Fluxo do aluno:
- * 1. Upload de PDF → processa e extrai chunks
- * 2. Gera pergunta → exibe QuestionCard
- * 3. Grava áudio OU digita resposta → envia para avaliação
- * 4. Exibe resultado → ResultCard com score, feedback, resposta exemplar
+ * 4-step flow: Upload → Question → Answer → Result
+ * No emoji. Icon-driven step indicator. Design system classes throughout.
  */
 
 import { useState } from 'react';
 import {
   Upload,
-  Sparkles,
+  Zap,
   MessageSquare,
+  BarChart3,
   ArrowRight,
   RotateCcw,
   Send,
-  BookOpen,
+  FileText,
+  Mic,
+  PenLine,
 } from 'lucide-react';
 
 import PdfUpload from '../components/PdfUpload';
@@ -26,7 +26,6 @@ import ResultCard from '../components/ResultCard';
 
 import { uploadPdf, generateQuestion, evaluateAnswer } from '../lib/api';
 
-// Steps do fluxo
 const STEPS = {
   UPLOAD: 'upload',
   QUESTION: 'question',
@@ -35,36 +34,35 @@ const STEPS = {
 };
 
 export default function Home() {
-  // Flow state
   const [step, setStep] = useState(STEPS.UPLOAD);
 
-  // Document state
+  // Document
   const [documentId, setDocumentId] = useState(null);
   const [documentName, setDocumentName] = useState('');
   const [totalChunks, setTotalChunks] = useState(0);
 
-  // Question state
+  // Question
   const [question, setQuestion] = useState('');
   const [referenceAnswer, setReferenceAnswer] = useState('');
   const [chunkUsed, setChunkUsed] = useState('');
 
-  // Answer state
+  // Answer
   const [studentAnswer, setStudentAnswer] = useState('');
   const [audioBlob, setAudioBlob] = useState(null);
-  const [answerMode, setAnswerMode] = useState('text'); // 'text' | 'audio'
+  const [answerMode, setAnswerMode] = useState('text');
 
-  // Result state
+  // Result
   const [result, setResult] = useState(null);
 
-  // Loading states
+  // Loading
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
 
-  // Error state
+  // Error
   const [error, setError] = useState(null);
 
-  // ─── HANDLERS ─────────────────────────────────────────────
+  // ── Handlers ──
 
   const handleUpload = async (file) => {
     setIsUploading(true);
@@ -75,7 +73,6 @@ export default function Home() {
       setDocumentName(data.filename);
       setTotalChunks(data.chunks.length);
       setStep(STEPS.QUESTION);
-      // Auto-generate first question
       await handleGenerateQuestion(data.document_id);
     } catch (err) {
       setError(err.message);
@@ -105,7 +102,6 @@ export default function Home() {
 
   const handleSubmitAnswer = async () => {
     if (!studentAnswer.trim() && !audioBlob) return;
-
     setIsEvaluating(true);
     setError(null);
     try {
@@ -145,102 +141,102 @@ export default function Home() {
     handleGenerateQuestion();
   };
 
-  // ─── STEP INDICATOR ──────────────────────────────────────
+  // ── Step indicator config ──
 
-  const stepLabels = [
+  const steps = [
     { key: STEPS.UPLOAD, label: 'Upload', icon: Upload },
-    { key: STEPS.QUESTION, label: 'Pergunta', icon: Sparkles },
+    { key: STEPS.QUESTION, label: 'Pergunta', icon: Zap },
     { key: STEPS.ANSWER, label: 'Resposta', icon: MessageSquare },
-    { key: STEPS.RESULT, label: 'Resultado', icon: BookOpen },
+    { key: STEPS.RESULT, label: 'Resultado', icon: BarChart3 },
   ];
 
-  const currentStepIndex = stepLabels.findIndex((s) => s.key === step);
+  const currentIndex = steps.findIndex((s) => s.key === step);
 
-  // ─── RENDER ───────────────────────────────────────────────
+  // ── Render ──
 
   return (
-    <div className="max-w-2xl mx-auto py-6 space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6">
       {/* Step indicator */}
-      <div className="flex items-center justify-between px-2">
-        {stepLabels.map((s, i) => {
+      <nav className="flex items-center gap-1" aria-label="Progresso">
+        {steps.map((s, i) => {
           const Icon = s.icon;
-          const isActive = i === currentStepIndex;
-          const isCompleted = i < currentStepIndex;
+          const isActive = i === currentIndex;
+          const isDone = i < currentIndex;
 
           return (
             <div key={s.key} className="flex items-center gap-1">
               <div
                 className={`
-                  flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
-                  transition-all duration-300
+                  flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-500
+                  transition-all duration-200
                   ${isActive
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                    : isCompleted
-                      ? 'bg-emerald-500/10 text-emerald-500/70'
-                      : 'bg-bg-glass text-text-muted border border-border-glass'
+                    ? 'bg-teal-500/15 text-teal-400'
+                    : isDone
+                      ? 'text-teal-400/60'
+                      : 'text-text-3'
                   }
                 `}
               >
                 <Icon className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">{s.label}</span>
               </div>
-              {i < stepLabels.length - 1 && (
-                <ArrowRight className={`w-3 h-3 mx-1 ${i < currentStepIndex ? 'text-emerald-500/50' : 'text-text-muted/30'}`} />
+              {i < steps.length - 1 && (
+                <ArrowRight className={`w-3 h-3 ${isDone ? 'text-teal-400/40' : 'text-border-subtle'}`} />
               )}
             </div>
           );
         })}
-      </div>
+      </nav>
 
-      {/* Document info bar */}
+      {/* Document info */}
       {documentId && step !== STEPS.UPLOAD && (
-        <div className="glass-card px-4 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-text-secondary">
-            <BookOpen className="w-4 h-4 text-emerald-400" />
-            <span className="truncate max-w-xs">{documentName}</span>
-            <span className="text-text-muted">•</span>
-            <span className="text-text-muted">{totalChunks} trechos</span>
+        <div className="flex items-center justify-between px-4 py-2.5 rounded-lg bg-surface-1 border border-border-subtle text-sm">
+          <div className="flex items-center gap-2 text-text-2 min-w-0">
+            <FileText className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+            <span className="truncate">{documentName}</span>
+            <span className="text-text-3 shrink-0">{totalChunks} trechos</span>
           </div>
           <button
             id="reset-btn"
             onClick={handleReset}
-            className="text-xs text-text-muted hover:text-text-secondary transition-colors flex items-center gap-1"
+            className="text-xs text-text-3 hover:text-text-2 transition-colors flex items-center gap-1 shrink-0 ml-2"
           >
             <RotateCcw className="w-3 h-3" />
-            Novo PDF
+            Trocar
           </button>
         </div>
       )}
 
-      {/* Global error */}
+      {/* Error */}
       {error && (
-        <div className="glass-card px-4 py-3 border border-danger/30 bg-danger/5 text-sm text-danger flex items-start gap-2 rounded-xl">
-          <span className="shrink-0">⚠️</span>
-          <span>{error}</span>
+        <div className="px-4 py-3 rounded-lg border border-danger/30 bg-danger-muted/10 text-sm text-danger">
+          {error}
         </div>
       )}
 
-      {/* ─── STEP: UPLOAD ──────────────────────────────── */}
+      {/* ── UPLOAD ── */}
       {step === STEPS.UPLOAD && (
-        <div className="glass-card p-6">
+        <section>
+          <div className="mb-6">
+            <h2 className="text-2xl font-['Plus_Jakarta_Sans'] font-800 tracking-tight text-text-1">
+              Comece pelo material
+            </h2>
+            <p className="text-sm text-text-3 mt-1">
+              Envie um PDF de Anatomia Veterinária para gerar perguntas.
+            </p>
+          </div>
           <PdfUpload onUpload={handleUpload} isUploading={isUploading} />
-        </div>
+        </section>
       )}
 
-      {/* ─── STEP: QUESTION (loading) ─────────────────── */}
-      {(step === STEPS.QUESTION || isGenerating) && (
-        <QuestionCard
-          question={question}
-          chunkUsed={chunkUsed}
-          onNewQuestion={() => handleGenerateQuestion()}
-          isLoading={isGenerating}
-        />
+      {/* ── QUESTION (loading) ── */}
+      {(step === STEPS.QUESTION || isGenerating) && !question && (
+        <QuestionCard question="" isLoading={true} />
       )}
 
-      {/* ─── STEP: ANSWER ─────────────────────────────── */}
+      {/* ── ANSWER ── */}
       {step === STEPS.ANSWER && !isGenerating && (
-        <div className="space-y-4 animate-slide-up">
-          {/* Question display */}
+        <div className="space-y-4 animate-enter">
           <QuestionCard
             question={question}
             chunkUsed={chunkUsed}
@@ -248,78 +244,71 @@ export default function Home() {
             isLoading={false}
           />
 
-          {/* Answer mode toggle */}
+          {/* Mode toggle */}
           <div className="flex gap-2">
             <button
               id="mode-text-btn"
               onClick={() => setAnswerMode('text')}
               className={`
-                flex-1 py-2.5 rounded-xl text-sm font-medium transition-all
+                flex-1 py-2.5 rounded-lg text-sm font-500 transition-all duration-200 flex items-center justify-center gap-2
                 ${answerMode === 'text'
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                  : 'bg-bg-glass text-text-secondary border border-border-glass hover:bg-white/5'
+                  ? 'bg-teal-500/15 text-teal-400 border border-teal-500/30'
+                  : 'bg-surface-1 text-text-3 border border-border-subtle hover:text-text-2'
                 }
               `}
             >
-              ✍️ Digitar resposta
+              <PenLine className="w-3.5 h-3.5" />
+              Digitar
             </button>
             <button
               id="mode-audio-btn"
               onClick={() => setAnswerMode('audio')}
               className={`
-                flex-1 py-2.5 rounded-xl text-sm font-medium transition-all
+                flex-1 py-2.5 rounded-lg text-sm font-500 transition-all duration-200 flex items-center justify-center gap-2
                 ${answerMode === 'audio'
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                  : 'bg-bg-glass text-text-secondary border border-border-glass hover:bg-white/5'
+                  ? 'bg-teal-500/15 text-teal-400 border border-teal-500/30'
+                  : 'bg-surface-1 text-text-3 border border-border-subtle hover:text-text-2'
                 }
               `}
             >
-              🎙️ Gravar áudio
+              <Mic className="w-3.5 h-3.5" />
+              Gravar
             </button>
           </div>
 
-          {/* Text answer */}
+          {/* Text mode */}
           {answerMode === 'text' && (
-            <div className="glass-card p-6 space-y-4">
+            <div className="card p-6 space-y-4">
               <textarea
                 id="student-answer-input"
                 value={studentAnswer}
                 onChange={(e) => setStudentAnswer(e.target.value)}
-                placeholder="Digite sua resposta aqui... Seja o mais completo possível."
+                placeholder="Digite sua resposta. Seja o mais completo possível."
                 rows={5}
-                className="w-full bg-bg-glass border border-border-glass rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted resize-none focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/25 transition-all"
+                className="input-field"
               />
-
               <button
                 id="submit-text-answer-btn"
                 onClick={handleSubmitAnswer}
                 disabled={!studentAnswer.trim() || isEvaluating}
-                className={`
-                  w-full py-3 rounded-xl font-semibold text-white
-                  flex items-center justify-center gap-2
-                  transition-all duration-300
-                  ${!studentAnswer.trim() || isEvaluating
-                    ? 'bg-emerald-600/30 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 hover:shadow-lg hover:shadow-emerald-500/25 active:scale-[0.98]'
-                  }
-                `}
+                className="btn-primary w-full"
               >
                 {isEvaluating ? (
                   <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Avaliando com IA...
+                    <span className="spinner" />
+                    Avaliando...
                   </>
                 ) : (
                   <>
+                    Enviar resposta
                     <Send className="w-4 h-4" />
-                    Enviar para Avaliação
                   </>
                 )}
               </button>
             </div>
           )}
 
-          {/* Audio answer */}
+          {/* Audio mode */}
           {answerMode === 'audio' && (
             <div className="space-y-4">
               <AudioRecorder
@@ -327,10 +316,9 @@ export default function Home() {
                 disabled={isEvaluating}
               />
 
-              {/* Text fallback for audio mode (MVP: audio + text required) */}
-              <div className="glass-card p-4">
-                <p className="text-xs text-text-muted mb-2">
-                  📝 No MVP, digite também a resposta para a IA avaliar:
+              <div className="card p-4">
+                <p className="text-xs text-text-3 mb-2">
+                  No MVP, digite também a resposta para avaliação:
                 </p>
                 <textarea
                   id="student-answer-audio-fallback"
@@ -338,7 +326,7 @@ export default function Home() {
                   onChange={(e) => setStudentAnswer(e.target.value)}
                   placeholder="Digite a mesma resposta que gravou..."
                   rows={3}
-                  className="w-full bg-bg-glass border border-border-glass rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted resize-none focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/25 transition-all"
+                  className="input-field"
                 />
               </div>
 
@@ -346,25 +334,17 @@ export default function Home() {
                 id="submit-audio-answer-btn"
                 onClick={handleSubmitAnswer}
                 disabled={!studentAnswer.trim() || isEvaluating}
-                className={`
-                  w-full py-3 rounded-xl font-semibold text-white
-                  flex items-center justify-center gap-2
-                  transition-all duration-300
-                  ${!studentAnswer.trim() || isEvaluating
-                    ? 'bg-emerald-600/30 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 hover:shadow-lg hover:shadow-emerald-500/25 active:scale-[0.98]'
-                  }
-                `}
+                className="btn-primary w-full"
               >
                 {isEvaluating ? (
                   <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Avaliando com IA...
+                    <span className="spinner" />
+                    Avaliando...
                   </>
                 ) : (
                   <>
+                    Enviar resposta
                     <Send className="w-4 h-4" />
-                    Enviar para Avaliação
                   </>
                 )}
               </button>
@@ -373,7 +353,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* ─── STEP: RESULT ──────────────────────────────── */}
+      {/* ── RESULT ── */}
       {step === STEPS.RESULT && result && (
         <div className="space-y-4">
           <ResultCard
@@ -382,20 +362,19 @@ export default function Home() {
             modelAnswer={result.model_answer}
           />
 
-          {/* Action buttons */}
-          <div className="flex gap-3">
+          <div className="flex gap-3 pt-2">
             <button
               id="next-question-btn"
               onClick={handleNextQuestion}
-              className="flex-1 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 hover:shadow-lg hover:shadow-emerald-500/25 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              className="btn-primary flex-1"
             >
-              <Sparkles className="w-4 h-4" />
-              Próxima Pergunta
+              <Zap className="w-4 h-4" />
+              Próxima pergunta
             </button>
             <button
               id="new-pdf-btn"
               onClick={handleReset}
-              className="py-3 px-6 rounded-xl font-semibold text-text-secondary bg-bg-glass border border-border-glass hover:bg-white/10 transition-all flex items-center gap-2"
+              className="btn-secondary"
             >
               <RotateCcw className="w-4 h-4" />
               Novo PDF
