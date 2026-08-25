@@ -9,7 +9,7 @@
 | Frontend | React 18 + Vite + TailwindCSS |
 | Backend | Python 3.11+ / FastAPI |
 | Database | Supabase (PostgreSQL) |
-| IA | Google Gemini 1.5 Flash |
+| IA | Google Gemini 3.5 Flash-Lite |
 
 ## Pré-requisitos
 

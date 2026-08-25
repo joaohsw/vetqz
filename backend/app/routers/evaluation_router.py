@@ -2,10 +2,10 @@
 Evaluation Router — endpoint de avaliação de respostas via Gemini.
 
 Suporta dois modos:
-1. Texto: O aluno envia a resposta digitada (JSON body).
+1. Texto: O aluno envia a resposta digitada.
 2. Áudio: O aluno envia um arquivo de áudio (multipart/form-data).
-   - No MVP, o áudio é armazenado e o aluno deve também fornecer texto.
-   - Futuramente, integrar transcrição automática (Whisper/Gemini).
+   - O navegador gera uma transcrição editável antes do envio.
+   - O backend armazena o áudio e avalia a transcrição revisada.
 
 SEGURANÇA:
 - Validação de MIME type e tamanho do áudio.
@@ -15,7 +15,7 @@ SEGURANÇA:
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.config import settings
-from app.schemas.evaluation import EvaluateAnswerRequest, EvaluateAnswerResponse
+from app.schemas.evaluation import EvaluateAnswerResponse
 from app.services.gemini_service import evaluate_answer
 from app.services.supabase_client import get_supabase_client
 from app.services.storage_service import upload_audio
@@ -24,6 +24,37 @@ router = APIRouter()
 
 # MIME types válidos para áudio
 ALLOWED_AUDIO_TYPES = {"audio/webm", "audio/wav", "audio/mp4", "audio/mpeg", "audio/ogg"}
+
+
+def normalize_content_type(content_type: str | None) -> str:
+    """Remove parâmetros como ';codecs=opus' antes de validar o MIME type."""
+    return (content_type or "").split(";", 1)[0].strip().lower()
+
+
+async def read_validated_audio(audio: UploadFile) -> tuple[bytes, str]:
+    """Valida formato/tamanho e retorna os bytes com o MIME normalizado."""
+    content_type = normalize_content_type(audio.content_type)
+    if content_type not in ALLOWED_AUDIO_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=f"Formato de áudio não suportado: {audio.content_type}. "
+                   f"Formatos aceitos: {', '.join(sorted(ALLOWED_AUDIO_TYPES))}",
+        )
+
+    audio_bytes = await audio.read()
+    if not audio_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="O arquivo de áudio está vazio.",
+        )
+
+    if len(audio_bytes) > settings.max_audio_size_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Áudio excede o limite de {settings.max_audio_size_mb}MB.",
+        )
+
+    return audio_bytes, content_type
 
 
 @router.post(
@@ -49,25 +80,11 @@ async def evaluate_answer_endpoint(
 
     # --- VALIDAÇÃO E UPLOAD DO ÁUDIO (opcional) ---
     if audio and audio.filename:
-        # Validação de MIME type
-        if audio.content_type not in ALLOWED_AUDIO_TYPES:
-            raise HTTPException(
-                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                detail=f"Formato de áudio não suportado: {audio.content_type}. "
-                       f"Formatos aceitos: {', '.join(ALLOWED_AUDIO_TYPES)}",
-            )
-
-        # Validação de tamanho
-        audio_bytes = await audio.read()
-        if len(audio_bytes) > settings.max_audio_size_bytes:
-            raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"Áudio excede o limite de {settings.max_audio_size_mb}MB.",
-            )
+        audio_bytes, content_type = await read_validated_audio(audio)
 
         # Upload ao Storage
         try:
-            audio_path = upload_audio(audio_bytes, audio.content_type or "audio/webm")
+            audio_path = upload_audio(audio_bytes, content_type)
         except Exception as e:
             # Não bloqueia a avaliação se o upload falhar
             print(f"⚠️ Erro ao salvar áudio no Storage: {e}")

@@ -49,7 +49,7 @@ export default function Home() {
   // Answer
   const [studentAnswer, setStudentAnswer] = useState('');
   const [audioBlob, setAudioBlob] = useState(null);
-  const [answerMode, setAnswerMode] = useState('text');
+  const [answerMode, setAnswerMode] = useState('audio');
 
   // Result
   const [result, setResult] = useState(null);
@@ -93,6 +93,7 @@ export default function Home() {
       setStep(STEPS.ANSWER);
       setStudentAnswer('');
       setAudioBlob(null);
+      setAnswerMode('audio');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -101,7 +102,7 @@ export default function Home() {
   };
 
   const handleSubmitAnswer = async () => {
-    if (!studentAnswer.trim() && !audioBlob) return;
+    if (!studentAnswer.trim()) return;
     setIsEvaluating(true);
     setError(null);
     try {
@@ -109,7 +110,7 @@ export default function Home() {
         question,
         referenceAnswer,
         studentAnswer: studentAnswer.trim(),
-        audioBlob,
+        audioBlob: answerMode === 'audio' ? audioBlob : null,
       });
       setResult(data);
       setStep(STEPS.RESULT);
@@ -130,6 +131,7 @@ export default function Home() {
     setChunkUsed('');
     setStudentAnswer('');
     setAudioBlob(null);
+    setAnswerMode('audio');
     setResult(null);
     setError(null);
   };
@@ -139,6 +141,13 @@ export default function Home() {
     setStudentAnswer('');
     setAudioBlob(null);
     handleGenerateQuestion();
+  };
+
+  const handleAnswerModeChange = (mode) => {
+    if (mode === answerMode) return;
+    setAnswerMode(mode);
+    setStudentAnswer('');
+    setAudioBlob(null);
   };
 
   // ── Step indicator config ──
@@ -247,22 +256,8 @@ export default function Home() {
           {/* Mode toggle */}
           <div className="flex gap-2">
             <button
-              id="mode-text-btn"
-              onClick={() => setAnswerMode('text')}
-              className={`
-                flex-1 py-2.5 rounded-lg text-sm font-500 transition-all duration-200 flex items-center justify-center gap-2
-                ${answerMode === 'text'
-                  ? 'bg-teal-500/15 text-teal-400 border border-teal-500/30'
-                  : 'bg-surface-1 text-text-3 border border-border-subtle hover:text-text-2'
-                }
-              `}
-            >
-              <PenLine className="w-3.5 h-3.5" />
-              Digitar
-            </button>
-            <button
               id="mode-audio-btn"
-              onClick={() => setAnswerMode('audio')}
+              onClick={() => handleAnswerModeChange('audio')}
               className={`
                 flex-1 py-2.5 rounded-lg text-sm font-500 transition-all duration-200 flex items-center justify-center gap-2
                 ${answerMode === 'audio'
@@ -272,7 +267,21 @@ export default function Home() {
               `}
             >
               <Mic className="w-3.5 h-3.5" />
-              Gravar
+              Responder por voz
+            </button>
+            <button
+              id="mode-text-btn"
+              onClick={() => handleAnswerModeChange('text')}
+              className={`
+                flex-1 py-2.5 rounded-lg text-sm font-500 transition-all duration-200 flex items-center justify-center gap-2
+                ${answerMode === 'text'
+                  ? 'bg-teal-500/15 text-teal-400 border border-teal-500/30'
+                  : 'bg-surface-1 text-text-3 border border-border-subtle hover:text-text-2'
+                }
+              `}
+            >
+              <PenLine className="w-3.5 h-3.5" />
+              Digitar (alternativa)
             </button>
           </div>
 
@@ -312,28 +321,20 @@ export default function Home() {
           {answerMode === 'audio' && (
             <div className="space-y-4">
               <AudioRecorder
-                onRecordingComplete={(blob) => setAudioBlob(blob)}
+                onRecordingComplete={setAudioBlob}
+                onRecordingReset={() => {
+                  setAudioBlob(null);
+                  setStudentAnswer('');
+                }}
+                transcriptValue={studentAnswer}
+                onTranscriptChange={setStudentAnswer}
                 disabled={isEvaluating}
               />
-
-              <div className="card p-4">
-                <p className="text-xs text-text-3 mb-2">
-                  No MVP, digite também a resposta para avaliação:
-                </p>
-                <textarea
-                  id="student-answer-audio-fallback"
-                  value={studentAnswer}
-                  onChange={(e) => setStudentAnswer(e.target.value)}
-                  placeholder="Digite a mesma resposta que gravou..."
-                  rows={3}
-                  className="input-field"
-                />
-              </div>
 
               <button
                 id="submit-audio-answer-btn"
                 onClick={handleSubmitAnswer}
-                disabled={!studentAnswer.trim() || isEvaluating}
+                disabled={!audioBlob || !studentAnswer.trim() || isEvaluating}
                 className="btn-primary w-full"
               >
                 {isEvaluating ? (
@@ -343,7 +344,7 @@ export default function Home() {
                   </>
                 ) : (
                   <>
-                    Enviar resposta
+                    Enviar resposta por voz
                     <Send className="w-4 h-4" />
                   </>
                 )}

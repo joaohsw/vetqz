@@ -17,11 +17,98 @@ export function useAudioRecorder() {
   const [audioUrl, setAudioUrl] = useState(null);
   const [duration, setDuration] = useState(0);
   const [error, setError] = useState(null);
+  const [transcript, setTranscript] = useState('');
+  const [transcriptionError, setTranscriptionError] = useState(null);
 
   const mediaRecorder = useRef(null);
   const audioChunks = useRef([]);
   const timerRef = useRef(null);
   const startTimeRef = useRef(null);
+  const speechRecognition = useRef(null);
+  const finalTranscript = useRef('');
+  const shouldRestartRecognition = useRef(false);
+
+  const SpeechRecognition =
+    typeof window !== 'undefined'
+      ? window.SpeechRecognition || window.webkitSpeechRecognition
+      : null;
+  const isSpeechRecognitionSupported = Boolean(SpeechRecognition);
+
+  /** Inicia/reinicia a transcrição nativa do navegador. */
+  const startSpeechRecognition = useCallback((resetTranscript = false) => {
+    if (!SpeechRecognition) return;
+
+    if (resetTranscript) {
+      finalTranscript.current = '';
+      setTranscript('');
+      setTranscriptionError(null);
+    }
+
+    if (!speechRecognition.current) {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'pt-BR';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = (event) => {
+        let interimTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i += 1) {
+          const text = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript.current = `${finalTranscript.current} ${text}`.trim();
+          } else {
+            interimTranscript += text;
+          }
+        }
+
+        setTranscript(`${finalTranscript.current} ${interimTranscript}`.trim());
+      };
+
+      recognition.onerror = (event) => {
+        if (event.error === 'no-speech' || event.error === 'aborted') return;
+
+        const messages = {
+          'not-allowed': 'Permissão para transcrição negada.',
+          'service-not-allowed': 'O serviço de transcrição está bloqueado no navegador.',
+          network: 'A transcrição do navegador está indisponível no momento.',
+          'audio-capture': 'Não foi possível capturar o áudio para transcrição.',
+        };
+        setTranscriptionError(messages[event.error] || `Falha na transcrição: ${event.error}`);
+      };
+
+      recognition.onend = () => {
+        if (
+          shouldRestartRecognition.current &&
+          mediaRecorder.current?.state === 'recording'
+        ) {
+          try {
+            recognition.start();
+          } catch {
+            // O navegador ainda está encerrando a sessão anterior.
+          }
+        }
+      };
+
+      speechRecognition.current = recognition;
+    }
+
+    shouldRestartRecognition.current = true;
+    try {
+      speechRecognition.current.start();
+    } catch {
+      // A instância já pode estar ativa.
+    }
+  }, [SpeechRecognition]);
+
+  const stopSpeechRecognition = useCallback(() => {
+    shouldRestartRecognition.current = false;
+    try {
+      speechRecognition.current?.stop();
+    } catch {
+      // A instância já pode estar parada.
+    }
+  }, []);
 
   /**
    * Inicia a gravação de áudio.
@@ -33,6 +120,8 @@ export function useAudioRecorder() {
       setAudioBlob(null);
       setAudioUrl(null);
       setDuration(0);
+      setTranscript('');
+      setTranscriptionError(null);
       audioChunks.current = [];
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -70,6 +159,7 @@ export function useAudioRecorder() {
 
       mediaRecorder.current.start(250); // Coleta dados a cada 250ms
       setStatus('recording');
+      startSpeechRecognition(true);
 
       // Timer de duração
       startTimeRef.current = Date.now();
@@ -84,7 +174,7 @@ export function useAudioRecorder() {
       );
       setStatus('idle');
     }
-  }, []);
+  }, [startSpeechRecognition]);
 
   /**
    * Para a gravação e gera o Blob de áudio.
@@ -92,9 +182,10 @@ export function useAudioRecorder() {
   const stopRecording = useCallback(() => {
     if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
       mediaRecorder.current.stop();
+      stopSpeechRecognition();
       setStatus('idle');
     }
-  }, []);
+  }, [stopSpeechRecognition]);
 
   /**
    * Pausa a gravação.
@@ -102,12 +193,13 @@ export function useAudioRecorder() {
   const pauseRecording = useCallback(() => {
     if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
       mediaRecorder.current.pause();
+      stopSpeechRecognition();
       setStatus('paused');
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
     }
-  }, []);
+  }, [stopSpeechRecognition]);
 
   /**
    * Retoma a gravação pausada.
@@ -115,6 +207,7 @@ export function useAudioRecorder() {
   const resumeRecording = useCallback(() => {
     if (mediaRecorder.current && mediaRecorder.current.state === 'paused') {
       mediaRecorder.current.resume();
+      startSpeechRecognition(false);
       setStatus('recording');
       const elapsed = duration;
       startTimeRef.current = Date.now() - elapsed * 1000;
@@ -122,12 +215,13 @@ export function useAudioRecorder() {
         setDuration(Math.floor((Date.now() - startTimeRef.current) / 1000));
       }, 1000);
     }
-  }, [duration]);
+  }, [duration, startSpeechRecognition]);
 
   /**
    * Reseta o estado para permitir nova gravação.
    */
   const resetRecording = useCallback(() => {
+    stopSpeechRecognition();
     if (audioUrl) {
       URL.revokeObjectURL(audioUrl);
     }
@@ -135,9 +229,12 @@ export function useAudioRecorder() {
     setAudioUrl(null);
     setDuration(0);
     setError(null);
+    setTranscript('');
+    setTranscriptionError(null);
     setStatus('idle');
     audioChunks.current = [];
-  }, [audioUrl]);
+    finalTranscript.current = '';
+  }, [audioUrl, stopSpeechRecognition]);
 
   /**
    * Formata duração em mm:ss.
@@ -151,6 +248,9 @@ export function useAudioRecorder() {
     duration,
     formattedDuration,
     error,
+    transcript,
+    transcriptionError,
+    isSpeechRecognitionSupported,
     startRecording,
     stopRecording,
     pauseRecording,

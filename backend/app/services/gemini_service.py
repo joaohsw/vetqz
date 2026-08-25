@@ -1,5 +1,5 @@
 """
-Gemini Service — geração de perguntas e avaliação semântica via Google Gemini 1.5 Flash.
+Gemini Service — geração de perguntas e avaliação semântica via Google Gemini 3.5 Flash-Lite.
 
 SEGURANÇA — Prompt Injection Defense:
 - Todo conteúdo externo (PDF text, student answer) é delimitado com XML tags.
@@ -10,21 +10,17 @@ SEGURANÇA — Prompt Injection Defense:
 import json
 import re
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from app.config import settings
 
-# Configura a API key do Gemini
-genai.configure(api_key=settings.gemini_api_key)
-
-# Modelo compartilhado
-_model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash",
-    generation_config=genai.GenerationConfig(
-        temperature=0.7,
-        max_output_tokens=2048,
-        response_mime_type="application/json",
-    ),
+# Client e configuração compartilhados
+_client = genai.Client(api_key=settings.gemini_api_key)
+_model_name = "gemini-3.5-flash-lite"
+_generation_config = types.GenerateContentConfig(
+    max_output_tokens=2048,
+    response_mime_type="application/json",
 )
 
 # ---------------------------------------------------------------------------
@@ -120,7 +116,11 @@ async def generate_question(context: str) -> dict:
         Dict com 'question' e 'reference_answer'.
     """
     prompt = QUESTION_GENERATION_PROMPT.format(context=context)
-    response = await _model.generate_content_async(prompt)
+    response = await _client.aio.models.generate_content(
+        model=_model_name,
+        contents=prompt,
+        config=_generation_config,
+    )
     return _parse_json_response(response.text)
 
 
@@ -145,7 +145,11 @@ async def evaluate_answer(
         reference_answer=reference_answer,
         student_answer=student_answer,
     )
-    response = await _model.generate_content_async(prompt)
+    response = await _client.aio.models.generate_content(
+        model=_model_name,
+        contents=prompt,
+        config=_generation_config,
+    )
     result = _parse_json_response(response.text)
 
     # Garante que o score está no range válido
