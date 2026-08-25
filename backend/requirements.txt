@@ -1,0 +1,17 @@
+# Core
+fastapi==0.115.*
+uvicorn[standard]==0.32.*
+python-multipart==0.0.*
+pydantic-settings==2.7.*
+
+# Supabase
+supabase==2.12.*
+
+# PDF Processing
+pypdf==5.4.*
+
+# Google Gemini AI
+google-generativeai==0.8.*
+
+# Utilities
+python-dotenv==1.1.*
