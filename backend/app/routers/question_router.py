@@ -7,6 +7,7 @@ import random
 
 from fastapi import APIRouter, HTTPException, status
 
+from app.localization import api_message
 from app.schemas.question import GenerateQuestionRequest, GenerateQuestionResponse
 from app.services.gemini_service import generate_question
 from app.services.supabase_client import get_supabase_client
@@ -42,7 +43,11 @@ async def generate_question_endpoint(request: GenerateQuestionRequest):
     if not result.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Documento não encontrado: {request.document_id}",
+            detail=api_message(
+                request.language,
+                'document_not_found',
+                document_id=request.document_id,
+            ),
         )
 
     document = result.data[0]
@@ -51,8 +56,7 @@ async def generate_question_endpoint(request: GenerateQuestionRequest):
     if not chunks:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="O documento não possui chunks de texto. "
-                   "O PDF pode estar vazio ou corrompido.",
+            detail=api_message(request.language, 'document_no_chunks'),
         )
 
     # --- SELECIONA CHUNK ---
@@ -60,8 +64,12 @@ async def generate_question_endpoint(request: GenerateQuestionRequest):
         if request.chunk_index < 0 or request.chunk_index >= len(chunks):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"chunk_index {request.chunk_index} fora do range "
-                       f"[0, {len(chunks) - 1}].",
+                detail=api_message(
+                    request.language,
+                    'chunk_out_of_range',
+                    index=request.chunk_index,
+                    maximum=len(chunks) - 1,
+                ),
             )
         selected_chunk = chunks[request.chunk_index]
     else:
@@ -69,11 +77,11 @@ async def generate_question_endpoint(request: GenerateQuestionRequest):
 
     # --- GERA PERGUNTA VIA GEMINI ---
     try:
-        gemini_response = await generate_question(selected_chunk)
+        gemini_response = await generate_question(selected_chunk, request.language)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Erro ao gerar pergunta com o Gemini: {str(e)}",
+            detail=api_message(request.language, 'question_generation', error=str(e)),
         )
 
     return GenerateQuestionResponse(

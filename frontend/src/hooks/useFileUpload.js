@@ -6,12 +6,14 @@
  */
 
 import { useState, useCallback } from 'react';
+import { formatMessage, getTranslations } from '../i18n';
 
 const MAX_PDF_SIZE_MB = 15;
 const MAX_PDF_SIZE_BYTES = MAX_PDF_SIZE_MB * 1024 * 1024;
 const ALLOWED_TYPES = ['application/pdf'];
 
-export function useFileUpload() {
+export function useFileUpload(language) {
+  const copy = getTranslations(language);
   const [file, setFile] = useState(null);
   const [error, setError] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -22,18 +24,23 @@ export function useFileUpload() {
    * @returns {string|null} Mensagem de erro ou null se válido.
    */
   const validateFile = useCallback((selectedFile) => {
-    if (!selectedFile) return 'Nenhum arquivo selecionado.';
+    if (!selectedFile) return copy.pdfUpload.errors.noFile;
 
     if (!ALLOWED_TYPES.includes(selectedFile.type)) {
-      return `Tipo de arquivo não suportado: ${selectedFile.type || 'desconhecido'}. Apenas PDF é aceito.`;
+      return formatMessage(copy.pdfUpload.errors.unsupported, {
+        type: selectedFile.type || copy.pdfUpload.errors.unknownType,
+      });
     }
 
     if (selectedFile.size > MAX_PDF_SIZE_BYTES) {
-      return `Arquivo muito grande (${(selectedFile.size / 1024 / 1024).toFixed(1)}MB). Limite: ${MAX_PDF_SIZE_MB}MB.`;
+      return formatMessage(copy.pdfUpload.errors.tooLarge, {
+        size: (selectedFile.size / 1024 / 1024).toFixed(1),
+        limit: MAX_PDF_SIZE_MB,
+      });
     }
 
     return null;
-  }, []);
+  }, [copy]);
 
   /**
    * Processa um arquivo (de input ou drag-and-drop).

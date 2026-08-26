@@ -8,6 +8,7 @@
 import { useEffect } from 'react';
 import { Mic, Pause, Play, Square, RotateCcw, AlertCircle, FileText } from 'lucide-react';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
+import { getTranslations } from '../i18n';
 
 export default function AudioRecorder({
   onRecordingComplete,
@@ -15,7 +16,9 @@ export default function AudioRecorder({
   transcriptValue,
   onTranscriptChange,
   disabled = false,
+  language,
 }) {
+  const copy = getTranslations(language);
   const {
     status,
     audioBlob,
@@ -30,7 +33,7 @@ export default function AudioRecorder({
     pauseRecording,
     resumeRecording,
     resetRecording,
-  } = useAudioRecorder();
+  } = useAudioRecorder(language);
 
   useEffect(() => {
     if (audioBlob) onRecordingComplete?.(audioBlob);
@@ -49,7 +52,7 @@ export default function AudioRecorder({
     <div className="card p-6 animate-enter">
       <h3 className="text-xs font-['Plus_Jakarta_Sans'] font-600 text-text-3 uppercase tracking-widest mb-5 flex items-center gap-2">
         <Mic className="w-3.5 h-3.5 text-teal-400" />
-        Gravação de Áudio
+        {copy.audio.title}
       </h3>
 
       {/* Timer */}
@@ -62,10 +65,10 @@ export default function AudioRecorder({
           {formattedDuration}
         </p>
         <p className="text-sm text-text-3 mt-2">
-          {status === 'idle' && !audioBlob && 'Pressione para iniciar'}
-          {status === 'idle' && audioBlob && 'Gravação concluída'}
-          {status === 'recording' && 'Gravando'}
-          {status === 'paused' && 'Pausado'}
+          {status === 'idle' && !audioBlob && copy.audio.startPrompt}
+          {status === 'idle' && audioBlob && copy.audio.completed}
+          {status === 'recording' && copy.audio.recording}
+          {status === 'paused' && copy.audio.paused}
         </p>
       </div>
 
@@ -77,6 +80,7 @@ export default function AudioRecorder({
             id="audio-start-btn"
             onClick={startRecording}
             disabled={disabled}
+            aria-label={copy.audio.start}
             className={`
               w-14 h-14 rounded-full flex items-center justify-center
               transition-all duration-200
@@ -97,6 +101,7 @@ export default function AudioRecorder({
               id="audio-pause-btn"
               onClick={pauseRecording}
               className="btn-secondary rounded-full w-10 h-10 p-0"
+              aria-label={copy.audio.pause}
             >
               <Pause className="w-4 h-4" />
             </button>
@@ -106,6 +111,7 @@ export default function AudioRecorder({
                 id="audio-stop-btn"
                 onClick={stopRecording}
                 className="w-14 h-14 rounded-full bg-danger text-white flex items-center justify-center hover:scale-105 transition-transform"
+                aria-label={copy.audio.stop}
               >
                 <Square className="w-5 h-5 fill-current" />
               </button>
@@ -120,6 +126,7 @@ export default function AudioRecorder({
               id="audio-resume-btn"
               onClick={resumeRecording}
               className="btn-secondary rounded-full w-10 h-10 p-0"
+              aria-label={copy.audio.resume}
             >
               <Play className="w-4 h-4 text-teal-400" />
             </button>
@@ -128,6 +135,7 @@ export default function AudioRecorder({
               id="audio-stop-paused-btn"
               onClick={stopRecording}
               className="w-14 h-14 rounded-full bg-danger text-white flex items-center justify-center hover:scale-105 transition-transform"
+              aria-label={copy.audio.stop}
             >
               <Square className="w-5 h-5 fill-current" />
             </button>
@@ -140,7 +148,8 @@ export default function AudioRecorder({
             id="audio-reset-btn"
             onClick={handleReset}
             className="btn-secondary rounded-full w-10 h-10 p-0"
-            title="Descartar e regravar"
+            title={copy.audio.discard}
+            aria-label={copy.audio.discard}
           >
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -155,6 +164,7 @@ export default function AudioRecorder({
             src={audioUrl}
             controls
             className="w-full h-8"
+            aria-label={copy.audio.preview}
             style={{ filter: 'invert(0.85) hue-rotate(180deg) contrast(0.85) saturate(0.5)' }}
           />
         </div>
@@ -168,10 +178,10 @@ export default function AudioRecorder({
             className="text-xs font-['Plus_Jakarta_Sans'] font-600 text-text-2 flex items-center gap-1.5"
           >
             <FileText className="w-3.5 h-3.5 text-teal-400" />
-            Transcrição editável
+            {copy.audio.transcriptLabel}
           </label>
           {status === 'recording' && (
-            <span className="text-xs text-teal-400">Transcrevendo...</span>
+            <span className="text-xs text-teal-400">{copy.audio.transcribing}</span>
           )}
         </div>
         <textarea
@@ -180,28 +190,28 @@ export default function AudioRecorder({
           onChange={(event) => onTranscriptChange?.(event.target.value)}
           placeholder={
             isSpeechRecognitionSupported
-              ? 'A transcrição aparecerá aqui enquanto você fala...'
-              : 'Transcrição automática indisponível. Digite sua resposta aqui.'
+              ? copy.audio.transcriptPlaceholder
+              : copy.audio.transcriptFallback
           }
           rows={4}
           className="input-field"
         />
         <p className="text-xs text-text-3 mt-2">
-          Revise e corrija a transcrição antes de enviar.
+          {copy.audio.reviewTranscript}
         </p>
       </div>
 
       {!isSpeechRecognitionSupported && (
         <div className="mt-4 flex items-start gap-2 text-sm text-gold-400 bg-gold-500/10 rounded-lg px-4 py-3">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>Seu navegador não oferece transcrição automática. Use Chrome/Edge ou digite a resposta.</span>
+          <span>{copy.audio.unsupported}</span>
         </div>
       )}
 
       {transcriptionError && (
         <div className="mt-4 flex items-start gap-2 text-sm text-gold-400 bg-gold-500/10 rounded-lg px-4 py-3">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>{transcriptionError} Você ainda pode corrigir ou digitar a resposta.</span>
+          <span>{transcriptionError} {copy.audio.canEdit}</span>
         </div>
       )}
 

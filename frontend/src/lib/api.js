@@ -5,16 +5,28 @@
  * Em produção, usa VITE_API_BASE_URL.
  */
 
+import { DEFAULT_LANGUAGE, formatMessage, getTranslations } from '../i18n';
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+async function throwApiError(response, language) {
+  const copy = getTranslations(language);
+  const error = await response.json().catch(() => ({ detail: copy.api.unknownError }));
+  const detail = typeof error.detail === 'string' ? error.detail : copy.api.unknownError;
+  throw new Error(
+    detail || formatMessage(copy.api.requestError, { status: response.status })
+  );
+}
 
 /**
  * Upload de PDF para o backend.
  * @param {File} file - Arquivo PDF selecionado pelo usuário.
  * @returns {Promise<Object>} - { document_id, filename, num_pages, chunks[] }
  */
-export async function uploadPdf(file) {
+export async function uploadPdf(file, language = DEFAULT_LANGUAGE) {
   const formData = new FormData();
   formData.append('file', file);
+  formData.append('language', language);
 
   const response = await fetch(`${API_BASE}/api/upload-pdf`, {
     method: 'POST',
@@ -22,8 +34,7 @@ export async function uploadPdf(file) {
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Erro desconhecido' }));
-    throw new Error(error.detail || `Erro ${response.status}`);
+    await throwApiError(response, language);
   }
 
   return response.json();
@@ -35,8 +46,12 @@ export async function uploadPdf(file) {
  * @param {number|null} chunkIndex - Índice do chunk (opcional).
  * @returns {Promise<Object>} - { question, reference_answer, chunk_used }
  */
-export async function generateQuestion(documentId, chunkIndex = null) {
-  const body = { document_id: documentId };
+export async function generateQuestion(
+  documentId,
+  chunkIndex = null,
+  language = DEFAULT_LANGUAGE
+) {
+  const body = { document_id: documentId, language };
   if (chunkIndex !== null) body.chunk_index = chunkIndex;
 
   const response = await fetch(`${API_BASE}/api/generate-question`, {
@@ -46,8 +61,7 @@ export async function generateQuestion(documentId, chunkIndex = null) {
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Erro desconhecido' }));
-    throw new Error(error.detail || `Erro ${response.status}`);
+    await throwApiError(response, language);
   }
 
   return response.json();
@@ -62,11 +76,18 @@ export async function generateQuestion(documentId, chunkIndex = null) {
  * @param {Blob|null} params.audioBlob - Gravação de áudio (opcional).
  * @returns {Promise<Object>} - { score, feedback, model_answer }
  */
-export async function evaluateAnswer({ question, referenceAnswer, studentAnswer, audioBlob = null }) {
+export async function evaluateAnswer({
+  question,
+  referenceAnswer,
+  studentAnswer,
+  audioBlob = null,
+  language = DEFAULT_LANGUAGE,
+}) {
   const formData = new FormData();
   formData.append('question', question);
   formData.append('reference_answer', referenceAnswer);
   formData.append('student_answer', studentAnswer);
+  formData.append('language', language);
 
   if (audioBlob) {
     formData.append('audio', audioBlob, 'recording.webm');
@@ -78,8 +99,7 @@ export async function evaluateAnswer({ question, referenceAnswer, studentAnswer,
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Erro desconhecido' }));
-    throw new Error(error.detail || `Erro ${response.status}`);
+    await throwApiError(response, language);
   }
 
   return response.json();

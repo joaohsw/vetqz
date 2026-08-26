@@ -1,0 +1,216 @@
+export const DEFAULT_LANGUAGE = 'pt-BR';
+
+export const LANGUAGE_OPTIONS = [
+  { value: 'pt-BR', shortLabel: 'PT', name: 'Português' },
+  { value: 'es-CL', shortLabel: 'ES', name: 'Español' },
+];
+
+export const translations = {
+  'pt-BR': {
+    metadata: {
+      title: 'vetQz — Trivia de Anatomia Veterinária com IA',
+      description:
+        'Plataforma gamificada de trivia e avaliação oral para estudantes de Anatomia Veterinária.',
+    },
+    layout: {
+      languageSelector: 'Selecionar idioma',
+      switchTo: 'Mudar para {language}',
+      footer: 'Anatomia Veterinária com IA',
+    },
+    home: {
+      progress: 'Progresso',
+      steps: {
+        upload: 'Upload',
+        question: 'Pergunta',
+        answer: 'Resposta',
+        result: 'Resultado',
+      },
+      excerpts: 'trechos',
+      changeDocument: 'Trocar',
+      uploadTitle: 'Comece pelo material',
+      uploadDescription: 'Envie um PDF de Anatomia Veterinária para gerar perguntas.',
+      answerByVoice: 'Responder por voz',
+      answerByText: 'Digitar (alternativa)',
+      textPlaceholder: 'Digite sua resposta. Seja o mais completo possível.',
+      evaluating: 'Avaliando...',
+      submitAnswer: 'Enviar resposta',
+      submitVoiceAnswer: 'Enviar resposta por voz',
+      nextQuestion: 'Próxima pergunta',
+      newPdf: 'Novo PDF',
+    },
+    pdfUpload: {
+      dropActive: 'Solte o arquivo aqui',
+      dropIdle: 'Arraste um PDF ou clique para selecionar',
+      fileRequirements: 'Apenas PDF, até 15 MB',
+      processing: 'Processando...',
+      submit: 'Enviar e processar',
+      clearFile: 'Remover arquivo selecionado',
+      errors: {
+        noFile: 'Nenhum arquivo selecionado.',
+        unsupported: 'Tipo de arquivo não suportado: {type}. Apenas PDF é aceito.',
+        unknownType: 'desconhecido',
+        tooLarge: 'Arquivo muito grande ({size}MB). Limite: {limit}MB.',
+      },
+    },
+    questionCard: {
+      title: 'Pergunta',
+      newQuestion: 'Nova',
+      showSource: 'Ver trecho do material',
+    },
+    audio: {
+      title: 'Gravação de áudio',
+      startPrompt: 'Pressione para iniciar',
+      completed: 'Gravação concluída',
+      recording: 'Gravando',
+      paused: 'Pausado',
+      start: 'Iniciar gravação',
+      pause: 'Pausar gravação',
+      resume: 'Retomar gravação',
+      stop: 'Encerrar gravação',
+      discard: 'Descartar e regravar',
+      preview: 'Prévia da gravação',
+      transcriptLabel: 'Transcrição editável',
+      transcribing: 'Transcrevendo...',
+      transcriptPlaceholder: 'A transcrição aparecerá aqui enquanto você fala...',
+      transcriptFallback: 'Transcrição automática indisponível. Digite sua resposta aqui.',
+      reviewTranscript: 'Revise e corrija a transcrição antes de enviar.',
+      unsupported:
+        'Seu navegador não oferece transcrição automática. Use Chrome/Edge ou digite a resposta.',
+      canEdit: 'Você ainda pode corrigir ou digitar a resposta.',
+      errors: {
+        transcriptionDenied: 'Permissão para transcrição negada.',
+        transcriptionBlocked: 'O serviço de transcrição está bloqueado no navegador.',
+        transcriptionNetwork: 'A transcrição do navegador está indisponível no momento.',
+        transcriptionCapture: 'Não foi possível capturar o áudio para transcrição.',
+        transcriptionGeneric: 'Falha na transcrição: {error}',
+        microphoneDenied:
+          'Permissão de microfone negada. Ative nas configurações do navegador.',
+        microphoneGeneric: 'Erro ao acessar o microfone: {error}',
+      },
+    },
+    result: {
+      title: 'Resultado',
+      feedback: 'Feedback',
+      modelAnswer: 'Resposta exemplar',
+      scoreLabels: {
+        excellent: 'Excelente',
+        good: 'Bom',
+        fair: 'Regular',
+        review: 'Precisa revisar',
+      },
+    },
+    api: {
+      unknownError: 'Erro desconhecido',
+      requestError: 'Erro {status}',
+    },
+  },
+  'es-CL': {
+    metadata: {
+      title: 'vetQz — Trivia de Anatomía Veterinaria con IA',
+      description:
+        'Plataforma gamificada de trivia y evaluación oral para estudiantes de Anatomía Veterinaria.',
+    },
+    layout: {
+      languageSelector: 'Seleccionar idioma',
+      switchTo: 'Cambiar a {language}',
+      footer: 'Anatomía Veterinaria con IA',
+    },
+    home: {
+      progress: 'Progreso',
+      steps: {
+        upload: 'Carga',
+        question: 'Pregunta',
+        answer: 'Respuesta',
+        result: 'Resultado',
+      },
+      excerpts: 'fragmentos',
+      changeDocument: 'Cambiar',
+      uploadTitle: 'Comienza con el material',
+      uploadDescription: 'Sube un PDF de Anatomía Veterinaria para generar preguntas.',
+      answerByVoice: 'Responder por voz',
+      answerByText: 'Escribir (alternativa)',
+      textPlaceholder: 'Escribe tu respuesta. Sé lo más completo posible.',
+      evaluating: 'Evaluando...',
+      submitAnswer: 'Enviar respuesta',
+      submitVoiceAnswer: 'Enviar respuesta por voz',
+      nextQuestion: 'Siguiente pregunta',
+      newPdf: 'Nuevo PDF',
+    },
+    pdfUpload: {
+      dropActive: 'Suelta el archivo aquí',
+      dropIdle: 'Arrastra un PDF o haz clic para seleccionarlo',
+      fileRequirements: 'Solo PDF, hasta 15 MB',
+      processing: 'Procesando...',
+      submit: 'Subir y procesar',
+      clearFile: 'Eliminar archivo seleccionado',
+      errors: {
+        noFile: 'No se seleccionó ningún archivo.',
+        unsupported: 'Tipo de archivo no compatible: {type}. Solo se aceptan archivos PDF.',
+        unknownType: 'desconocido',
+        tooLarge: 'El archivo es demasiado grande ({size}MB). Límite: {limit}MB.',
+      },
+    },
+    questionCard: {
+      title: 'Pregunta',
+      newQuestion: 'Nueva',
+      showSource: 'Ver fragmento del material',
+    },
+    audio: {
+      title: 'Grabación de audio',
+      startPrompt: 'Presiona para comenzar',
+      completed: 'Grabación finalizada',
+      recording: 'Grabando',
+      paused: 'En pausa',
+      start: 'Iniciar grabación',
+      pause: 'Pausar grabación',
+      resume: 'Reanudar grabación',
+      stop: 'Finalizar grabación',
+      discard: 'Descartar y volver a grabar',
+      preview: 'Vista previa de la grabación',
+      transcriptLabel: 'Transcripción editable',
+      transcribing: 'Transcribiendo...',
+      transcriptPlaceholder: 'La transcripción aparecerá aquí mientras hablas...',
+      transcriptFallback: 'La transcripción automática no está disponible. Escribe tu respuesta aquí.',
+      reviewTranscript: 'Revisa y corrige la transcripción antes de enviarla.',
+      unsupported:
+        'Tu navegador no ofrece transcripción automática. Usa Chrome/Edge o escribe la respuesta.',
+      canEdit: 'Aún puedes corregir o escribir la respuesta.',
+      errors: {
+        transcriptionDenied: 'Se denegó el permiso para la transcripción.',
+        transcriptionBlocked: 'El servicio de transcripción está bloqueado en el navegador.',
+        transcriptionNetwork: 'La transcripción del navegador no está disponible en este momento.',
+        transcriptionCapture: 'No fue posible capturar el audio para transcribirlo.',
+        transcriptionGeneric: 'Error de transcripción: {error}',
+        microphoneDenied:
+          'Se denegó el permiso del micrófono. Actívalo en la configuración del navegador.',
+        microphoneGeneric: 'Error al acceder al micrófono: {error}',
+      },
+    },
+    result: {
+      title: 'Resultado',
+      feedback: 'Retroalimentación',
+      modelAnswer: 'Respuesta modelo',
+      scoreLabels: {
+        excellent: 'Excelente',
+        good: 'Bueno',
+        fair: 'Regular',
+        review: 'Necesita repaso',
+      },
+    },
+    api: {
+      unknownError: 'Error desconocido',
+      requestError: 'Error {status}',
+    },
+  },
+};
+
+export function getTranslations(language) {
+  return translations[language] || translations[DEFAULT_LANGUAGE];
+}
+
+export function formatMessage(template, values = {}) {
+  return Object.entries(values).reduce(
+    (message, [key, value]) => message.replaceAll(`{${key}}`, String(value)),
+    template
+  );
+}

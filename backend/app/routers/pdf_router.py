@@ -9,9 +9,11 @@ SEGURANÇA:
 
 import json
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.config import settings
+from app.localization import api_message
+from app.schemas.language import DEFAULT_LANGUAGE, SupportedLanguage
 from app.schemas.pdf import UploadPDFResponse
 from app.services.pdf_service import extract_text_from_pdf, chunk_text
 from app.services.supabase_client import get_supabase_client
@@ -30,7 +32,10 @@ ALLOWED_PDF_TYPES = {"application/pdf"}
     summary="Upload e processamento de PDF",
     description="Recebe um PDF, extrai texto, divide em chunks e persiste no Supabase.",
 )
-async def upload_pdf_endpoint(file: UploadFile = File(...)):
+async def upload_pdf_endpoint(
+    file: UploadFile = File(...),
+    language: SupportedLanguage = Form(DEFAULT_LANGUAGE),
+):
     """
     Pipeline de upload:
     1. Valida MIME type e tamanho.
@@ -44,8 +49,11 @@ async def upload_pdf_endpoint(file: UploadFile = File(...)):
     if file.content_type not in ALLOWED_PDF_TYPES:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=f"Tipo de arquivo não suportado: {file.content_type}. "
-                   f"Apenas PDF (application/pdf) é aceito.",
+            detail=api_message(
+                language,
+                'unsupported_pdf',
+                content_type=file.content_type,
+            ),
         )
 
     # --- VALIDAÇÃO: Tamanho do arquivo ---
@@ -53,7 +61,7 @@ async def upload_pdf_endpoint(file: UploadFile = File(...)):
     if len(file_bytes) > settings.max_pdf_size_bytes:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Arquivo excede o limite de {settings.max_pdf_size_mb}MB.",
+            detail=api_message(language, 'pdf_too_large', limit=settings.max_pdf_size_mb),
         )
 
     # --- EXTRAÇÃO DE TEXTO ---
@@ -62,14 +70,13 @@ async def upload_pdf_endpoint(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Erro ao processar o PDF: {str(e)}",
+            detail=api_message(language, 'pdf_processing', error=str(e)),
         )
 
     if not full_text.strip():
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="O PDF não contém texto extraível. "
-                   "Verifique se não é um PDF escaneado (imagem).",
+            detail=api_message(language, 'pdf_no_text'),
         )
 
     # --- CHUNKING ---
@@ -81,7 +88,7 @@ async def upload_pdf_endpoint(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao salvar o PDF no Storage: {str(e)}",
+            detail=api_message(language, 'pdf_storage', error=str(e)),
         )
 
     # --- PERSISTÊNCIA NO BANCO ---
@@ -101,7 +108,7 @@ async def upload_pdf_endpoint(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao salvar metadata no banco: {str(e)}",
+            detail=api_message(language, 'pdf_database', error=str(e)),
         )
 
     return UploadPDFResponse(

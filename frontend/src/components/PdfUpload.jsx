@@ -7,10 +7,12 @@
 
 import { Upload, FileText, X, AlertCircle, ArrowRight } from 'lucide-react';
 import { useFileUpload } from '../hooks/useFileUpload';
+import { getTranslations } from '../i18n';
 
-export default function PdfUpload({ onUpload, isUploading = false }) {
+export default function PdfUpload({ onUpload, isUploading = false, language }) {
+  const copy = getTranslations(language);
   const { file, error, isDragging, onFileChange, onDragOver, onDragLeave, onDrop, clearFile } =
-    useFileUpload();
+    useFileUpload(language);
 
   const handleSubmit = () => {
     if (file && onUpload) {
@@ -56,10 +58,10 @@ export default function PdfUpload({ onUpload, isUploading = false }) {
             </div>
             <div>
               <p className="font-['Plus_Jakarta_Sans'] font-600 text-text-1">
-                {isDragging ? 'Solte o arquivo aqui' : 'Arraste um PDF ou clique para selecionar'}
+                {isDragging ? copy.pdfUpload.dropActive : copy.pdfUpload.dropIdle}
               </p>
               <p className="text-sm text-text-3 mt-1">
-                Apenas PDF, até 15 MB
+                {copy.pdfUpload.fileRequirements}
               </p>
             </div>
           </div>
@@ -82,6 +84,7 @@ export default function PdfUpload({ onUpload, isUploading = false }) {
               }}
               className="p-1.5 rounded-md hover:bg-surface-3 transition-colors text-text-3 hover:text-text-2"
               disabled={isUploading}
+              aria-label={copy.pdfUpload.clearFile}
             >
               <X className="w-4 h-4" />
             </button>
@@ -108,11 +111,11 @@ export default function PdfUpload({ onUpload, isUploading = false }) {
           {isUploading ? (
             <>
               <span className="spinner" />
-              Processando...
+              {copy.pdfUpload.processing}
             </>
           ) : (
             <>
-              Enviar e processar
+              {copy.pdfUpload.submit}
               <ArrowRight className="w-4 h-4" />
             </>
           )}

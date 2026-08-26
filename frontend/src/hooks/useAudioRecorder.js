@@ -5,13 +5,15 @@
  * Retorna o Blob gravado e funções de controle.
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { formatMessage, getTranslations } from '../i18n';
 
 /**
  * @typedef {'idle' | 'recording' | 'paused'} RecordingStatus
  */
 
-export function useAudioRecorder() {
+export function useAudioRecorder(language) {
+  const copy = getTranslations(language);
   const [status, setStatus] = useState('idle');
   const [audioBlob, setAudioBlob] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
@@ -27,6 +29,8 @@ export function useAudioRecorder() {
   const speechRecognition = useRef(null);
   const finalTranscript = useRef('');
   const shouldRestartRecognition = useRef(false);
+  const mediaStream = useRef(null);
+  const audioUrlRef = useRef(null);
 
   const SpeechRecognition =
     typeof window !== 'undefined'
@@ -46,7 +50,7 @@ export function useAudioRecorder() {
 
     if (!speechRecognition.current) {
       const recognition = new SpeechRecognition();
-      recognition.lang = 'pt-BR';
+      recognition.lang = language;
       recognition.continuous = true;
       recognition.interimResults = true;
 
@@ -69,12 +73,15 @@ export function useAudioRecorder() {
         if (event.error === 'no-speech' || event.error === 'aborted') return;
 
         const messages = {
-          'not-allowed': 'Permissão para transcrição negada.',
-          'service-not-allowed': 'O serviço de transcrição está bloqueado no navegador.',
-          network: 'A transcrição do navegador está indisponível no momento.',
-          'audio-capture': 'Não foi possível capturar o áudio para transcrição.',
+          'not-allowed': copy.audio.errors.transcriptionDenied,
+          'service-not-allowed': copy.audio.errors.transcriptionBlocked,
+          network: copy.audio.errors.transcriptionNetwork,
+          'audio-capture': copy.audio.errors.transcriptionCapture,
         };
-        setTranscriptionError(messages[event.error] || `Falha na transcrição: ${event.error}`);
+        setTranscriptionError(
+          messages[event.error] ||
+            formatMessage(copy.audio.errors.transcriptionGeneric, { error: event.error })
+        );
       };
 
       recognition.onend = () => {
@@ -99,7 +106,7 @@ export function useAudioRecorder() {
     } catch {
       // A instância já pode estar ativa.
     }
-  }, [SpeechRecognition]);
+  }, [SpeechRecognition, copy, language]);
 
   const stopSpeechRecognition = useCallback(() => {
     shouldRestartRecognition.current = false;
@@ -125,6 +132,7 @@ export function useAudioRecorder() {
       audioChunks.current = [];
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStream.current = stream;
 
       // Tenta webm primeiro, wav como fallback
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
@@ -144,11 +152,13 @@ export function useAudioRecorder() {
       mediaRecorder.current.onstop = () => {
         const blob = new Blob(audioChunks.current, { type: mimeType });
         const url = URL.createObjectURL(blob);
+        audioUrlRef.current = url;
         setAudioBlob(blob);
         setAudioUrl(url);
 
         // Para todas as tracks do stream
         stream.getTracks().forEach((track) => track.stop());
+        mediaStream.current = null;
 
         // Para o timer
         if (timerRef.current) {
@@ -169,12 +179,12 @@ export function useAudioRecorder() {
     } catch (err) {
       setError(
         err.name === 'NotAllowedError'
-          ? 'Permissão de microfone negada. Ative nas configurações do navegador.'
-          : `Erro ao acessar o microfone: ${err.message}`
+          ? copy.audio.errors.microphoneDenied
+          : formatMessage(copy.audio.errors.microphoneGeneric, { error: err.message })
       );
       setStatus('idle');
     }
-  }, [startSpeechRecognition]);
+  }, [copy, startSpeechRecognition]);
 
   /**
    * Para a gravação e gera o Blob de áudio.
@@ -224,6 +234,7 @@ export function useAudioRecorder() {
     stopSpeechRecognition();
     if (audioUrl) {
       URL.revokeObjectURL(audioUrl);
+      audioUrlRef.current = null;
     }
     setAudioBlob(null);
     setAudioUrl(null);
@@ -235,6 +246,25 @@ export function useAudioRecorder() {
     audioChunks.current = [];
     finalTranscript.current = '';
   }, [audioUrl, stopSpeechRecognition]);
+
+  useEffect(() => () => {
+    shouldRestartRecognition.current = false;
+    try {
+      speechRecognition.current?.abort();
+    } catch {
+      // A instância pode já ter sido encerrada pelo navegador.
+    }
+    if (mediaRecorder.current?.state !== 'inactive') {
+      try {
+        mediaRecorder.current?.stop();
+      } catch {
+        // O gravador pode já estar finalizando.
+      }
+    }
+    mediaStream.current?.getTracks().forEach((track) => track.stop());
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+  }, []);
 
   /**
    * Formata duração em mm:ss.

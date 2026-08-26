@@ -7,18 +7,19 @@
 
 import { TrendingUp, BookMarked, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
+import { getTranslations } from '../i18n';
 
 /** Score color bands — oklch-derived, consistent with design system */
-function getScoreStyle(score) {
-  if (score >= 8) return { text: 'text-success', stroke: 'oklch(0.65 0.15 160)', label: 'Excelente' };
-  if (score >= 6) return { text: 'text-teal-400', stroke: 'oklch(0.65 0.13 185)', label: 'Bom' };
-  if (score >= 4) return { text: 'text-gold-400', stroke: 'oklch(0.75 0.12 85)', label: 'Regular' };
-  return { text: 'text-danger', stroke: 'oklch(0.65 0.2 25)', label: 'Precisa revisar' };
+function getScoreStyle(score, labels) {
+  if (score >= 8) return { text: 'text-success', stroke: 'oklch(0.65 0.15 160)', label: labels.excellent };
+  if (score >= 6) return { text: 'text-teal-400', stroke: 'oklch(0.65 0.13 185)', label: labels.good };
+  if (score >= 4) return { text: 'text-gold-400', stroke: 'oklch(0.75 0.12 85)', label: labels.fair };
+  return { text: 'text-danger', stroke: 'oklch(0.65 0.2 25)', label: labels.review };
 }
 
 /** Animated SVG score circle */
-function ScoreCircle({ score }) {
-  const { text, stroke, label } = getScoreStyle(score);
+function ScoreCircle({ score, labels }) {
+  const { text, stroke, label } = getScoreStyle(score, labels);
   const circumference = 283; // 2 * π * 45
   const offset = circumference - (score / 10) * circumference;
 
@@ -54,8 +55,9 @@ function ScoreCircle({ score }) {
   );
 }
 
-export default function ResultCard({ score, feedback, modelAnswer }) {
+export default function ResultCard({ score, feedback, modelAnswer, language }) {
   const [showModelAnswer, setShowModelAnswer] = useState(false);
+  const copy = getTranslations(language);
 
   if (score === null || score === undefined) return null;
 
@@ -64,9 +66,9 @@ export default function ResultCard({ score, feedback, modelAnswer }) {
       {/* Score */}
       <div className="card p-6 animate-enter">
         <h3 className="text-xs font-['Plus_Jakarta_Sans'] font-600 text-teal-400 uppercase tracking-widest mb-6">
-          Resultado
+          {copy.result.title}
         </h3>
-        <ScoreCircle score={score} />
+        <ScoreCircle score={score} labels={copy.result.scoreLabels} />
       </div>
 
       {/* Feedback */}
@@ -74,7 +76,7 @@ export default function ResultCard({ score, feedback, modelAnswer }) {
         <div className="card p-6 animate-enter">
           <h4 className="text-xs font-['Plus_Jakarta_Sans'] font-600 text-gold-400 uppercase tracking-widest mb-3 flex items-center gap-2">
             <TrendingUp className="w-3.5 h-3.5" />
-            Feedback
+            {copy.result.feedback}
           </h4>
           <p className="text-sm text-text-2 leading-relaxed whitespace-pre-line text-pretty">
             {feedback}
@@ -92,7 +94,7 @@ export default function ResultCard({ score, feedback, modelAnswer }) {
           >
             <h4 className="text-xs font-['Plus_Jakarta_Sans'] font-600 text-teal-400 uppercase tracking-widest flex items-center gap-2">
               <BookMarked className="w-3.5 h-3.5" />
-              Resposta Exemplar
+              {copy.result.modelAnswer}
             </h4>
             <ChevronDown
               className={`w-4 h-4 text-text-3 transition-transform duration-200 ${showModelAnswer ? 'rotate-180' : ''}`}

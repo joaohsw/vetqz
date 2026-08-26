@@ -6,13 +6,17 @@
  */
 
 import { RefreshCw, BookOpen } from 'lucide-react';
+import { getTranslations } from '../i18n';
 
 export default function QuestionCard({
   question,
   chunkUsed = '',
   onNewQuestion,
   isLoading = false,
+  language,
 }) {
+  const copy = getTranslations(language);
+
   if (isLoading) {
     return (
       <div className="card p-6 animate-enter">
@@ -33,7 +37,7 @@ export default function QuestionCard({
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xs font-['Plus_Jakarta_Sans'] font-600 text-teal-400 uppercase tracking-widest">
-          Pergunta
+          {copy.questionCard.title}
         </h3>
         <button
           id="new-question-btn"
@@ -42,7 +46,7 @@ export default function QuestionCard({
           className="flex items-center gap-1.5 text-xs text-text-3 hover:text-teal-400 transition-colors px-2 py-1 rounded-md hover:bg-surface-2"
         >
           <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
-          Nova
+          {copy.questionCard.newQuestion}
         </button>
       </div>
 
@@ -56,7 +60,7 @@ export default function QuestionCard({
         <details className="mt-5 group">
           <summary className="flex items-center gap-1.5 text-xs text-text-3 cursor-pointer hover:text-text-2 transition-colors select-none">
             <BookOpen className="w-3 h-3" />
-            Ver trecho do material
+            {copy.questionCard.showSource}
           </summary>
           <div className="mt-2 p-3 rounded-lg bg-surface-0 text-xs text-text-3 leading-relaxed max-h-28 overflow-y-auto border border-border-subtle">
             {chunkUsed}

@@ -4,10 +4,16 @@ Schemas Pydantic para geração de perguntas.
 
 from pydantic import BaseModel, Field
 
+from app.schemas.language import DEFAULT_LANGUAGE, SupportedLanguage
+
 
 class GenerateQuestionRequest(BaseModel):
     """Request para POST /api/generate-question."""
     document_id: str = Field(..., description="UUID do documento fonte")
+    language: SupportedLanguage = Field(
+        DEFAULT_LANGUAGE,
+        description="Idioma da pergunta e da resposta: pt-BR ou es-CL",
+    )
     chunk_index: int | None = Field(
         None,
         description="Índice do chunk a usar. Se None, seleciona aleatoriamente.",

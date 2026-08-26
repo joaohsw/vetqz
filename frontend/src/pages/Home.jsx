@@ -25,6 +25,7 @@ import AudioRecorder from '../components/AudioRecorder';
 import ResultCard from '../components/ResultCard';
 
 import { uploadPdf, generateQuestion, evaluateAnswer } from '../lib/api';
+import { getTranslations } from '../i18n';
 
 const STEPS = {
   UPLOAD: 'upload',
@@ -33,7 +34,8 @@ const STEPS = {
   RESULT: 'result',
 };
 
-export default function Home() {
+export default function Home({ language }) {
+  const copy = getTranslations(language);
   const [step, setStep] = useState(STEPS.UPLOAD);
 
   // Document
@@ -68,12 +70,12 @@ export default function Home() {
     setIsUploading(true);
     setError(null);
     try {
-      const data = await uploadPdf(file);
+      const data = await uploadPdf(file, language);
       setDocumentId(data.document_id);
       setDocumentName(data.filename);
       setTotalChunks(data.chunks.length);
       setStep(STEPS.QUESTION);
-      await handleGenerateQuestion(data.document_id);
+      await handleGenerateQuestion(data.document_id, language);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -81,12 +83,12 @@ export default function Home() {
     }
   };
 
-  const handleGenerateQuestion = async (docId = documentId) => {
+  const handleGenerateQuestion = async (docId = documentId, selectedLanguage = language) => {
     setIsGenerating(true);
     setError(null);
     setResult(null);
     try {
-      const data = await generateQuestion(docId);
+      const data = await generateQuestion(docId, null, selectedLanguage);
       setQuestion(data.question);
       setReferenceAnswer(data.reference_answer);
       setChunkUsed(data.chunk_used);
@@ -111,6 +113,7 @@ export default function Home() {
         referenceAnswer,
         studentAnswer: studentAnswer.trim(),
         audioBlob: answerMode === 'audio' ? audioBlob : null,
+        language,
       });
       setResult(data);
       setStep(STEPS.RESULT);
@@ -153,10 +156,10 @@ export default function Home() {
   // ── Step indicator config ──
 
   const steps = [
-    { key: STEPS.UPLOAD, label: 'Upload', icon: Upload },
-    { key: STEPS.QUESTION, label: 'Pergunta', icon: Zap },
-    { key: STEPS.ANSWER, label: 'Resposta', icon: MessageSquare },
-    { key: STEPS.RESULT, label: 'Resultado', icon: BarChart3 },
+    { key: STEPS.UPLOAD, label: copy.home.steps.upload, icon: Upload },
+    { key: STEPS.QUESTION, label: copy.home.steps.question, icon: Zap },
+    { key: STEPS.ANSWER, label: copy.home.steps.answer, icon: MessageSquare },
+    { key: STEPS.RESULT, label: copy.home.steps.result, icon: BarChart3 },
   ];
 
   const currentIndex = steps.findIndex((s) => s.key === step);
@@ -166,7 +169,7 @@ export default function Home() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Step indicator */}
-      <nav className="flex items-center gap-1" aria-label="Progresso">
+      <nav className="flex items-center gap-1" aria-label={copy.home.progress}>
         {steps.map((s, i) => {
           const Icon = s.icon;
           const isActive = i === currentIndex;
@@ -203,7 +206,7 @@ export default function Home() {
           <div className="flex items-center gap-2 text-text-2 min-w-0">
             <FileText className="w-3.5 h-3.5 text-teal-400 shrink-0" />
             <span className="truncate">{documentName}</span>
-            <span className="text-text-3 shrink-0">{totalChunks} trechos</span>
+            <span className="text-text-3 shrink-0">{totalChunks} {copy.home.excerpts}</span>
           </div>
           <button
             id="reset-btn"
@@ -211,7 +214,7 @@ export default function Home() {
             className="text-xs text-text-3 hover:text-text-2 transition-colors flex items-center gap-1 shrink-0 ml-2"
           >
             <RotateCcw className="w-3 h-3" />
-            Trocar
+            {copy.home.changeDocument}
           </button>
         </div>
       )}
@@ -228,19 +231,19 @@ export default function Home() {
         <section>
           <div className="mb-6">
             <h2 className="text-2xl font-['Plus_Jakarta_Sans'] font-800 tracking-tight text-text-1">
-              Comece pelo material
+              {copy.home.uploadTitle}
             </h2>
             <p className="text-sm text-text-3 mt-1">
-              Envie um PDF de Anatomia Veterinária para gerar perguntas.
+              {copy.home.uploadDescription}
             </p>
           </div>
-          <PdfUpload onUpload={handleUpload} isUploading={isUploading} />
+          <PdfUpload onUpload={handleUpload} isUploading={isUploading} language={language} />
         </section>
       )}
 
       {/* ── QUESTION (loading) ── */}
       {(step === STEPS.QUESTION || isGenerating) && !question && (
-        <QuestionCard question="" isLoading={true} />
+        <QuestionCard question="" isLoading={true} language={language} />
       )}
 
       {/* ── ANSWER ── */}
@@ -251,6 +254,7 @@ export default function Home() {
             chunkUsed={chunkUsed}
             onNewQuestion={() => handleGenerateQuestion()}
             isLoading={false}
+            language={language}
           />
 
           {/* Mode toggle */}
@@ -267,7 +271,7 @@ export default function Home() {
               `}
             >
               <Mic className="w-3.5 h-3.5" />
-              Responder por voz
+              {copy.home.answerByVoice}
             </button>
             <button
               id="mode-text-btn"
@@ -281,7 +285,7 @@ export default function Home() {
               `}
             >
               <PenLine className="w-3.5 h-3.5" />
-              Digitar (alternativa)
+              {copy.home.answerByText}
             </button>
           </div>
 
@@ -292,7 +296,7 @@ export default function Home() {
                 id="student-answer-input"
                 value={studentAnswer}
                 onChange={(e) => setStudentAnswer(e.target.value)}
-                placeholder="Digite sua resposta. Seja o mais completo possível."
+                placeholder={copy.home.textPlaceholder}
                 rows={5}
                 className="input-field"
               />
@@ -305,11 +309,11 @@ export default function Home() {
                 {isEvaluating ? (
                   <>
                     <span className="spinner" />
-                    Avaliando...
+                    {copy.home.evaluating}
                   </>
                 ) : (
                   <>
-                    Enviar resposta
+                    {copy.home.submitAnswer}
                     <Send className="w-4 h-4" />
                   </>
                 )}
@@ -329,6 +333,7 @@ export default function Home() {
                 transcriptValue={studentAnswer}
                 onTranscriptChange={setStudentAnswer}
                 disabled={isEvaluating}
+                language={language}
               />
 
               <button
@@ -340,11 +345,11 @@ export default function Home() {
                 {isEvaluating ? (
                   <>
                     <span className="spinner" />
-                    Avaliando...
+                    {copy.home.evaluating}
                   </>
                 ) : (
                   <>
-                    Enviar resposta por voz
+                    {copy.home.submitVoiceAnswer}
                     <Send className="w-4 h-4" />
                   </>
                 )}
@@ -361,6 +366,7 @@ export default function Home() {
             score={result.score}
             feedback={result.feedback}
             modelAnswer={result.model_answer}
+            language={language}
           />
 
           <div className="flex gap-3 pt-2">
@@ -370,7 +376,7 @@ export default function Home() {
               className="btn-primary flex-1"
             >
               <Zap className="w-4 h-4" />
-              Próxima pergunta
+              {copy.home.nextQuestion}
             </button>
             <button
               id="new-pdf-btn"
@@ -378,7 +384,7 @@ export default function Home() {
               className="btn-secondary"
             >
               <RotateCcw className="w-4 h-4" />
-              Novo PDF
+              {copy.home.newPdf}
             </button>
           </div>
         </div>

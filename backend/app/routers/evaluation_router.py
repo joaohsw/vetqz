@@ -15,7 +15,9 @@ SEGURANÇA:
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.config import settings
+from app.localization import api_message
 from app.schemas.evaluation import EvaluateAnswerResponse
+from app.schemas.language import DEFAULT_LANGUAGE, SupportedLanguage
 from app.services.gemini_service import evaluate_answer
 from app.services.supabase_client import get_supabase_client
 from app.services.storage_service import upload_audio
@@ -31,27 +33,34 @@ def normalize_content_type(content_type: str | None) -> str:
     return (content_type or "").split(";", 1)[0].strip().lower()
 
 
-async def read_validated_audio(audio: UploadFile) -> tuple[bytes, str]:
+async def read_validated_audio(
+    audio: UploadFile,
+    language: SupportedLanguage,
+) -> tuple[bytes, str]:
     """Valida formato/tamanho e retorna os bytes com o MIME normalizado."""
     content_type = normalize_content_type(audio.content_type)
     if content_type not in ALLOWED_AUDIO_TYPES:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=f"Formato de áudio não suportado: {audio.content_type}. "
-                   f"Formatos aceitos: {', '.join(sorted(ALLOWED_AUDIO_TYPES))}",
+            detail=api_message(
+                language,
+                'unsupported_audio',
+                content_type=audio.content_type,
+                allowed_types=', '.join(sorted(ALLOWED_AUDIO_TYPES)),
+            ),
         )
 
     audio_bytes = await audio.read()
     if not audio_bytes:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="O arquivo de áudio está vazio.",
+            detail=api_message(language, 'empty_audio'),
         )
 
     if len(audio_bytes) > settings.max_audio_size_bytes:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Áudio excede o limite de {settings.max_audio_size_mb}MB.",
+            detail=api_message(language, 'audio_too_large', limit=settings.max_audio_size_mb),
         )
 
     return audio_bytes, content_type
@@ -67,6 +76,7 @@ async def evaluate_answer_endpoint(
     question: str = Form(...),
     reference_answer: str = Form(...),
     student_answer: str = Form(...),
+    language: SupportedLanguage = Form(DEFAULT_LANGUAGE),
     audio: UploadFile | None = File(None),
 ):
     """
@@ -80,7 +90,7 @@ async def evaluate_answer_endpoint(
 
     # --- VALIDAÇÃO E UPLOAD DO ÁUDIO (opcional) ---
     if audio and audio.filename:
-        audio_bytes, content_type = await read_validated_audio(audio)
+        audio_bytes, content_type = await read_validated_audio(audio, language)
 
         # Upload ao Storage
         try:
@@ -95,11 +105,12 @@ async def evaluate_answer_endpoint(
             question=question,
             reference_answer=reference_answer,
             student_answer=student_answer,
+            language=language,
         )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Erro ao avaliar resposta com o Gemini: {str(e)}",
+            detail=api_message(language, 'answer_evaluation', error=str(e)),
         )
 
     # --- PERSISTÊNCIA DA SESSÃO ---
