@@ -28,6 +28,11 @@ _generation_config = types.GenerateContentConfig(
     response_mime_type="application/json",
 )
 
+_topic_generation_config = types.GenerateContentConfig(
+    max_output_tokens=8192,
+    response_mime_type="application/json",
+)
+
 # ---------------------------------------------------------------------------
 # PROMPTS COM DELIMITADORES ESTRUTURADOS (defesa contra prompt injection)
 # ---------------------------------------------------------------------------
@@ -57,6 +62,36 @@ Responda no seguinte formato JSON:
 {{
     "question": "Pergunta técnica sobre o conteúdo",
     "reference_answer": "Resposta completa e detalhada"
+}}"""
+
+TOPIC_ANALYSIS_PROMPT = """Você organiza uma unidade da disciplina ZOO-00171 — Anatomia de Animais de Companhia.
+Analise exclusivamente os trechos indexados do PDF e construa um mapa de assuntos que ajude um estudante a escolher o que praticar.
+
+REGRAS ESTRITAS:
+- A quantidade de assuntos deve variar conforme a estrutura e a densidade reais do material. Não use uma quantidade fixa.
+- Inclua somente assuntos com conteúdo suficiente para gerar ao menos uma pergunta útil.
+- Agrupe trechos redundantes e evite títulos genéricos como "Introdução" quando não forem um tema de estudo real.
+- Use no máximo dois níveis conceituais no nome quando necessário, por exemplo "Sistema digestório — estômago".
+- Cada assunto deve referenciar um ou mais índices de trechos que o fundamentam.
+- Não invente conteúdo que não esteja no material.
+- Responda APENAS em JSON válido.
+
+IDIOMA OBRIGATÓRIO DA SAÍDA:
+- Escreva títulos e resumos exclusivamente em {language_name}.
+- Preserve nomenclatura anatômica latina oficial quando for tecnicamente apropriado.
+
+TRECHOS INDEXADOS:
+{indexed_chunks}
+
+Responda no seguinte formato JSON:
+{{
+  "topics": [
+    {{
+      "title": "Nome do assunto",
+      "summary": "Resumo curto do que será praticado.",
+      "chunk_indices": [0, 1]
+    }}
+  ]
 }}"""
 
 EVALUATION_PROMPT = """Você é um avaliador acadêmico especialista em Anatomia Veterinária.
@@ -126,6 +161,7 @@ def _parse_json_response(text: str) -> dict:
 async def generate_question(
     context: str,
     language: SupportedLanguage = DEFAULT_LANGUAGE,
+    topic_title: str | None = None,
 ) -> dict:
     """
     Gera uma pergunta de anatomia veterinária com base no contexto do PDF.
@@ -136,16 +172,86 @@ async def generate_question(
     Returns:
         Dict com 'question' e 'reference_answer'.
     """
+    focus = (
+        f"\nASSUNTO EM FOCO: {topic_title}\nA pergunta deve permanecer dentro desse assunto.\n"
+        if topic_title
+        else ""
+    )
     prompt = QUESTION_GENERATION_PROMPT.format(
         context=context,
         language_name=LANGUAGE_NAMES[language],
-    )
+    ) + focus
     response = await _client.aio.models.generate_content(
         model=_model_name,
         contents=prompt,
         config=_generation_config,
     )
     return _parse_json_response(response.text)
+
+
+def _normalize_topics(raw_topics: object, total_chunks: int) -> list[dict]:
+    """Remove referências inválidas geradas pelo modelo e cria IDs de sessão."""
+    if not isinstance(raw_topics, list):
+        return []
+
+    topics = []
+    for position, raw_topic in enumerate(raw_topics):
+        if not isinstance(raw_topic, dict):
+            continue
+
+        title = str(raw_topic.get("title", "")).strip()
+        summary = str(raw_topic.get("summary", "")).strip()
+        raw_indices = raw_topic.get("chunk_indices", [])
+        if not title or not summary or not isinstance(raw_indices, list):
+            continue
+
+        chunk_indices = sorted({
+            index
+            for index in raw_indices
+            if isinstance(index, int) and not isinstance(index, bool) and 0 <= index < total_chunks
+        })
+        if not chunk_indices:
+            continue
+
+        topics.append({
+            "id": f"topic-{position + 1}",
+            "title": title[:180],
+            "summary": summary[:360],
+            "chunk_indices": chunk_indices,
+        })
+
+    return topics
+
+
+async def analyze_topics(
+    chunks: list[str],
+    language: SupportedLanguage = DEFAULT_LANGUAGE,
+) -> list[dict]:
+    """Gera um mapa variável de assuntos, vinculado aos trechos do PDF."""
+    indexed_chunks = "\n\n".join(
+        f"--- TRECHO #{index} ---\n{chunk}"
+        for index, chunk in enumerate(chunks)
+    )
+    prompt = TOPIC_ANALYSIS_PROMPT.format(
+        indexed_chunks=indexed_chunks,
+        language_name=LANGUAGE_NAMES[language],
+    )
+    response = await _client.aio.models.generate_content(
+        model=_model_name,
+        contents=prompt,
+        config=_topic_generation_config,
+    )
+    parsed = _parse_json_response(response.text)
+    topics = _normalize_topics(parsed.get("topics"), len(chunks))
+    if topics:
+        return topics
+
+    return [{
+        "id": "topic-1",
+        "title": "Conteúdo geral da unidade",
+        "summary": "Prática abrangente com base em todos os trechos identificados no material.",
+        "chunk_indices": list(range(len(chunks))),
+    }]
 
 
 async def evaluate_answer(

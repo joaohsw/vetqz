@@ -41,18 +41,39 @@ export async function uploadPdf(file, language = DEFAULT_LANGUAGE) {
 }
 
 /**
+ * Identifica os assuntos reais da unidade antes do início da sessão.
+ * @returns {Promise<Object>} - { topics: [{ id, title, summary, chunk_indices }] }
+ */
+export async function analyzeTopics(documentId, language = DEFAULT_LANGUAGE) {
+  const response = await fetch(`${API_BASE}/api/analyze-topics`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ document_id: documentId, language }),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, language);
+  }
+
+  return response.json();
+}
+
+/**
  * Gera uma pergunta com base no documento.
  * @param {string} documentId - UUID do documento.
  * @param {number|null} chunkIndex - Índice do chunk (opcional).
  * @returns {Promise<Object>} - { question, reference_answer, chunk_used }
  */
-export async function generateQuestion(
-  documentId,
+export async function generateQuestion(documentId, {
   chunkIndex = null,
-  language = DEFAULT_LANGUAGE
-) {
+  chunkIndices = null,
+  topicTitle = null,
+  language = DEFAULT_LANGUAGE,
+} = {}) {
   const body = { document_id: documentId, language };
   if (chunkIndex !== null) body.chunk_index = chunkIndex;
+  if (chunkIndices !== null) body.chunk_indices = chunkIndices;
+  if (topicTitle) body.topic_title = topicTitle;
 
   const response = await fetch(`${API_BASE}/api/generate-question`, {
     method: 'POST',
