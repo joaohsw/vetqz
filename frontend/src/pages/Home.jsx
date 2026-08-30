@@ -69,6 +69,8 @@ export default function Home({ language }) {
   const [question, setQuestion] = useState('');
   const [referenceAnswer, setReferenceAnswer] = useState('');
   const [chunkUsed, setChunkUsed] = useState('');
+  const [chunkIndex, setChunkIndex] = useState(null);
+  const [sourceExcerpt, setSourceExcerpt] = useState('');
 
   // Answer and result
   const [studentAnswer, setStudentAnswer] = useState('');
@@ -98,6 +100,8 @@ export default function Home({ language }) {
     setQuestion('');
     setReferenceAnswer('');
     setChunkUsed('');
+    setChunkIndex(null);
+    setSourceExcerpt('');
     setStudentAnswer('');
     setAudioBlob(null);
     setAnswerMode('audio');
@@ -128,6 +132,8 @@ export default function Home({ language }) {
       setQuestion(data.question);
       setReferenceAnswer(data.reference_answer);
       setChunkUsed(data.chunk_used);
+      setChunkIndex(data.chunk_index);
+      setSourceExcerpt(data.source?.excerpt || '');
       setStep(STEPS.ANSWER);
     } catch (requestError) {
       setError(requestError.message);
@@ -186,6 +192,9 @@ export default function Home({ language }) {
         referenceAnswer,
         studentAnswer: studentAnswer.trim(),
         audioBlob: answerMode === 'audio' ? audioBlob : null,
+        documentId,
+        chunkIndex,
+        sourceExcerpt,
         language,
       });
       const attempt = {
@@ -236,6 +245,25 @@ export default function Home({ language }) {
     setAnswerMode(mode);
     setStudentAnswer('');
     setAudioBlob(null);
+  };
+
+  const handleRetryQuestion = () => {
+    setStudentAnswer('');
+    setAudioBlob(null);
+    setResult(null);
+    setStep(STEPS.ANSWER);
+  };
+
+  const handleAnotherQuestionSameTopic = async () => {
+    if (!activeTopic) return;
+    const nextPosition = currentQuestionIndex + 1;
+    const expandedPlan = [
+      ...questionPlan.slice(0, nextPosition),
+      activeTopic.id,
+      ...questionPlan.slice(nextPosition),
+    ];
+    setQuestionPlan(expandedPlan);
+    await loadQuestion(nextPosition, expandedPlan);
   };
 
   const averageScore = sessionResults.length
@@ -428,18 +456,17 @@ export default function Home({ language }) {
             score={result.score}
             feedback={result.feedback}
             modelAnswer={result.model_answer}
+            source={result.source}
+            onRetryQuestion={handleRetryQuestion}
+            onAnotherQuestionSameTopic={handleAnotherQuestionSameTopic}
+            onContinue={advanceSession}
+            isLastQuestion={currentQuestionIndex + 1 >= questionPlan.length}
             language={language}
           />
-          <div className="flex gap-3 pt-2">
-            <button id="continue-session-btn" type="button" onClick={advanceSession} className="btn-primary flex-1">
-              <Zap className="w-4 h-4" />
-              {currentQuestionIndex + 1 >= questionPlan.length ? copy.home.viewSummary : copy.home.nextQuestion}
-            </button>
-            <button id="configure-session-btn" type="button" onClick={handleConfigureAgain} className="btn-secondary">
-              <SlidersIcon />
-              {copy.home.configureSession}
-            </button>
-          </div>
+          <button id="configure-session-btn" type="button" onClick={handleConfigureAgain} className="btn-secondary w-full">
+            <SlidersIcon />
+            {copy.home.configureSession}
+          </button>
         </div>
       )}
 
@@ -467,11 +494,23 @@ export default function Home({ language }) {
                   <span className="text-sm font-700 text-teal-400 shrink-0">{attempt.result.score.toFixed(1)}</span>
                 </summary>
                 <div className="px-4 pb-4 border-t border-border-subtle pt-4 space-y-3">
-                  <p className="text-sm text-text-2 leading-relaxed whitespace-pre-line">{attempt.result.feedback}</p>
-                  <details className="text-sm">
-                    <summary className="text-teal-400 cursor-pointer">{copy.result.modelAnswer}</summary>
-                    <p className="text-text-2 leading-relaxed whitespace-pre-line mt-2">{attempt.result.model_answer}</p>
-                  </details>
+                  <div>
+                    <p className="text-xs font-600 text-teal-400 mb-1">{copy.result.modelAnswer}</p>
+                    <p className="text-sm text-text-2 leading-relaxed whitespace-pre-line">{attempt.result.model_answer}</p>
+                  </div>
+                  {attempt.result.source && (
+                    <div className="rounded-lg bg-surface-0 border border-border-subtle p-3">
+                      <p className="text-xs font-600 text-teal-400 mb-1">{copy.result.source}</p>
+                      <p className="text-xs text-text-3 leading-relaxed">“{attempt.result.source.excerpt}”</p>
+                      <p className="text-xs text-text-3 mt-2">{formatSourcePage(attempt.result.source.page_number, copy)}</p>
+                    </div>
+                  )}
+                  {attempt.result.feedback && (
+                    <details className="text-sm">
+                      <summary className="text-teal-400 cursor-pointer">{copy.result.feedback}</summary>
+                      <p className="text-text-2 leading-relaxed whitespace-pre-line mt-2">{attempt.result.feedback}</p>
+                    </details>
+                  )}
                 </div>
               </details>
             ))}
@@ -495,4 +534,10 @@ export default function Home({ language }) {
 
 function SlidersIcon() {
   return <RotateCcw className="w-4 h-4" />;
+}
+
+function formatSourcePage(pageNumber, copy) {
+  return pageNumber
+    ? copy.result.sourcePage.replace('{page}', pageNumber)
+    : copy.result.sourcePageUnavailable;
 }

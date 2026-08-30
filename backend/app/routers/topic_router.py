@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, status
 from app.localization import api_message
 from app.schemas.topic import AnalyzeTopicsRequest, AnalyzeTopicsResponse
 from app.services.gemini_service import analyze_topics
+from app.services.pdf_service import normalize_document_chunks
 from app.services.supabase_client import get_supabase_client
 
 router = APIRouter()
@@ -39,7 +40,8 @@ async def analyze_topics_endpoint(request: AnalyzeTopicsRequest):
         )
 
     document = result.data[0]
-    chunks = json.loads(document["chunks"]) if isinstance(document["chunks"], str) else document["chunks"]
+    raw_chunks = json.loads(document["chunks"]) if isinstance(document["chunks"], str) else document["chunks"]
+    chunks = normalize_document_chunks(raw_chunks)
     if not chunks:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -47,7 +49,7 @@ async def analyze_topics_endpoint(request: AnalyzeTopicsRequest):
         )
 
     try:
-        topics = await analyze_topics(chunks, request.language)
+        topics = await analyze_topics([chunk["text"] for chunk in chunks], request.language)
     except Exception as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

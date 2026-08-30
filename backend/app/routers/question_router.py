@@ -10,6 +10,11 @@ from fastapi import APIRouter, HTTPException, status
 from app.localization import api_message
 from app.schemas.question import GenerateQuestionRequest, GenerateQuestionResponse
 from app.services.gemini_service import generate_question
+from app.services.pdf_service import (
+    is_likely_table_of_contents,
+    normalize_document_chunks,
+    validate_source_excerpt,
+)
 from app.services.supabase_client import get_supabase_client
 
 router = APIRouter()
@@ -51,7 +56,8 @@ async def generate_question_endpoint(request: GenerateQuestionRequest):
         )
 
     document = result.data[0]
-    chunks = json.loads(document["chunks"]) if isinstance(document["chunks"], str) else document["chunks"]
+    raw_chunks = json.loads(document["chunks"]) if isinstance(document["chunks"], str) else document["chunks"]
+    chunks = normalize_document_chunks(raw_chunks)
 
     if not chunks:
         raise HTTPException(
@@ -73,6 +79,13 @@ async def generate_question_endpoint(request: GenerateQuestionRequest):
                 detail=api_message(request.language, 'no_eligible_chunks'),
             )
 
+    content_indices = [
+        index for index in eligible_indices
+        if not is_likely_table_of_contents(str(chunks[index]["text"]))
+    ]
+    if content_indices:
+        eligible_indices = content_indices
+
     if request.chunk_index is not None:
         if request.chunk_index < 0 or request.chunk_index >= len(chunks):
             raise HTTPException(
@@ -89,14 +102,17 @@ async def generate_question_endpoint(request: GenerateQuestionRequest):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=api_message(request.language, 'chunk_not_selected'),
             )
-        selected_chunk = chunks[request.chunk_index]
+        selected_index = request.chunk_index
     else:
-        selected_chunk = chunks[random.choice(eligible_indices)]
+        selected_index = random.choice(eligible_indices)
+
+    selected_chunk = chunks[selected_index]
+    selected_text = str(selected_chunk["text"])
 
     # --- GERA PERGUNTA VIA GEMINI ---
     try:
         gemini_response = await generate_question(
-            selected_chunk,
+            selected_text,
             request.language,
             request.topic_title,
         )
@@ -109,6 +125,14 @@ async def generate_question_endpoint(request: GenerateQuestionRequest):
     return GenerateQuestionResponse(
         question=gemini_response.get("question", ""),
         reference_answer=gemini_response.get("reference_answer", ""),
-        chunk_used=selected_chunk,
+        chunk_used=selected_text,
         topic_title=request.topic_title,
+        chunk_index=selected_index,
+        source={
+            "excerpt": validate_source_excerpt(
+                gemini_response.get("source_excerpt"),
+                selected_text,
+            ),
+            "page_number": selected_chunk["page_number"],
+        },
     )

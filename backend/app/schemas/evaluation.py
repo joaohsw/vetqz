@@ -5,6 +5,7 @@ Schemas Pydantic para avaliação de respostas.
 from pydantic import BaseModel, Field
 
 from app.schemas.language import DEFAULT_LANGUAGE, SupportedLanguage
+from app.schemas.pdf import SourceReference
 
 
 class EvaluateAnswerRequest(BaseModel):
@@ -27,4 +28,20 @@ class EvaluateAnswerResponse(BaseModel):
         description="Nota de 0.0 a 10.0",
     )
     feedback: str = Field(..., description="Feedback detalhado sobre a resposta do aluno")
+    strengths: list[str] = Field(
+        default_factory=list,
+        description="Pontos tecnicamente corretos identificados na resposta",
+    )
+    improvements: list[str] = Field(
+        default_factory=list,
+        description="Pontos que o estudante deve melhorar",
+    )
+    next_step: str = Field(
+        default="",
+        description="Orientação curta para a próxima tentativa",
+    )
     model_answer: str = Field(..., description="Resposta exemplar completa")
+    source: SourceReference | None = Field(
+        None,
+        description="Trecho e página que fundamentaram a pergunta",
+    )

@@ -5,6 +5,7 @@ Schemas Pydantic para geração de perguntas.
 from pydantic import BaseModel, Field
 
 from app.schemas.language import DEFAULT_LANGUAGE, SupportedLanguage
+from app.schemas.pdf import SourceReference
 
 
 class GenerateQuestionRequest(BaseModel):
@@ -35,3 +36,5 @@ class GenerateQuestionResponse(BaseModel):
     reference_answer: str = Field(..., description="Resposta de referência da IA")
     chunk_used: str = Field(..., description="Trecho do PDF usado como contexto")
     topic_title: str | None = Field(None, description="Assunto selecionado para a pergunta")
+    chunk_index: int = Field(..., ge=0, description="Índice do trecho usado no documento")
+    source: SourceReference = Field(..., description="Fonte rastreável da pergunta")

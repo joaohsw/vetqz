@@ -95,13 +95,19 @@ export async function generateQuestion(documentId, {
  * @param {string} params.referenceAnswer - Resposta de referência.
  * @param {string} params.studentAnswer - Resposta do aluno (texto).
  * @param {Blob|null} params.audioBlob - Gravação de áudio (opcional).
- * @returns {Promise<Object>} - { score, feedback, model_answer }
+ * @param {string} params.documentId - Documento que originou a pergunta.
+ * @param {number} params.chunkIndex - Trecho usado para gerar a pergunta.
+ * @param {string} params.sourceExcerpt - Citação curta usada para fundamentar a pergunta.
+ * @returns {Promise<Object>} - nota, feedback estruturado, resposta-modelo e fonte.
  */
 export async function evaluateAnswer({
   question,
   referenceAnswer,
   studentAnswer,
   audioBlob = null,
+  documentId = null,
+  chunkIndex = null,
+  sourceExcerpt = null,
   language = DEFAULT_LANGUAGE,
 }) {
   const formData = new FormData();
@@ -109,6 +115,9 @@ export async function evaluateAnswer({
   formData.append('reference_answer', referenceAnswer);
   formData.append('student_answer', studentAnswer);
   formData.append('language', language);
+  if (documentId) formData.append('document_id', documentId);
+  if (Number.isInteger(chunkIndex)) formData.append('chunk_index', String(chunkIndex));
+  if (sourceExcerpt) formData.append('source_excerpt', sourceExcerpt);
 
   if (audioBlob) {
     formData.append('audio', audioBlob, 'recording.webm');
