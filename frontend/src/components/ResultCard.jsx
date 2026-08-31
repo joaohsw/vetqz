@@ -63,6 +63,7 @@ function SourceCard({ source, copy }) {
 
 function RecommendedAction({ score, copy, onRetryQuestion, onAnotherQuestionSameTopic, onContinue, isLastQuestion }) {
   let content;
+  let secondaryAction = null;
   if (score < 6) {
     content = {
       title: copy.recommendations.review.title,
@@ -70,6 +71,10 @@ function RecommendedAction({ score, copy, onRetryQuestion, onAnotherQuestionSame
       label: copy.recommendations.review.action,
       icon: RefreshCw,
       onClick: onRetryQuestion,
+    };
+    secondaryAction = {
+      label: isLastQuestion ? copy.recommendations.advance.lastAction : copy.recommendations.review.continueAction,
+      onClick: onContinue,
     };
   } else if (score < 8) {
     content = {
@@ -102,6 +107,17 @@ function RecommendedAction({ score, copy, onRetryQuestion, onAnotherQuestionSame
         <Icon className="w-4 h-4" />
         {content.label}
       </button>
+      {secondaryAction && (
+        <button
+          type="button"
+          id="continue-after-review-btn"
+          onClick={secondaryAction.onClick}
+          className="btn-secondary w-full mt-2"
+        >
+          <ArrowRight className="w-4 h-4" />
+          {secondaryAction.label}
+        </button>
+      )}
     </div>
   );
 }

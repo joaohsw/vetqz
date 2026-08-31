@@ -146,6 +146,7 @@ export const translations = {
           title: 'Revise o trecho e tente responder novamente.',
           description: 'Use a base do material para completar os pontos que ficaram faltando.',
           action: 'Refazer esta pergunta',
+          continueAction: 'Seguir para a próxima pergunta',
         },
         practice: {
           title: 'Pratique mais uma pergunta deste assunto.',
@@ -313,6 +314,7 @@ export const translations = {
           title: 'Revisa el fragmento e intenta responder de nuevo.',
           description: 'Usa la base del material para completar los puntos que faltaron.',
           action: 'Repetir esta pregunta',
+          continueAction: 'Continuar con la siguiente pregunta',
         },
         practice: {
           title: 'Practica una pregunta más sobre este tema.',
