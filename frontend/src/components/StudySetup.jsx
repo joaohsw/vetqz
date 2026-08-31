@@ -5,14 +5,13 @@
 import { CheckSquare, ListTree, Play, SlidersHorizontal } from 'lucide-react';
 import { getTranslations } from '../i18n';
 
-const QUESTION_COUNTS = [5, 10, 15];
-
 export default function StudySetup({
   topics,
   selectedTopicIds,
   onSelectedTopicsChange,
   questionCount,
   onQuestionCountChange,
+  maxQuestions,
   feedbackMode,
   onFeedbackModeChange,
   onStart,
@@ -21,6 +20,29 @@ export default function StudySetup({
   const copy = getTranslations(language);
   const selectedIds = new Set(selectedTopicIds);
   const allSelected = topics.length > 0 && selectedTopicIds.length === topics.length;
+  const selectedCount = selectedTopicIds.length;
+  const canConfigureQuestions = selectedCount > 0 && selectedCount <= maxQuestions;
+  const minimumQuestions = selectedCount;
+  const safeQuestionCount = canConfigureQuestions
+    ? Math.max(minimumQuestions, Math.min(questionCount, maxQuestions))
+    : 0;
+  const questionsPerTopic = canConfigureQuestions
+    ? Math.floor(safeQuestionCount / selectedCount)
+    : 0;
+  const topicsWithExtraQuestion = canConfigureQuestions
+    ? safeQuestionCount % selectedCount
+    : 0;
+
+  const formatDistribution = () => {
+    const base = questionsPerTopic === 1
+      ? copy.studySetup.oneQuestionEach
+      : copy.studySetup.questionsEach.replace('{count}', questionsPerTopic);
+    return topicsWithExtraQuestion
+      ? copy.studySetup.distributionExtra
+        .replace('{base}', base)
+        .replace('{count}', topicsWithExtraQuestion)
+      : base;
+  };
 
   const toggleTopic = (topicId) => {
     const next = new Set(selectedIds);
@@ -53,7 +75,7 @@ export default function StudySetup({
           <div>
             <h3 className="text-sm font-600 text-text-1">{copy.studySetup.topicsTitle}</h3>
             <p className="text-xs text-text-3 mt-1">
-              {copy.studySetup.selectedCount.replace('{count}', selectedTopicIds.length)}
+              {copy.studySetup.selectedCount.replace('{count}', selectedCount)}
             </p>
           </div>
           <button
@@ -103,23 +125,38 @@ export default function StudySetup({
 
         <fieldset>
           <legend className="text-xs font-600 text-text-2 mb-3">{copy.studySetup.questionCount}</legend>
-          <div className="grid grid-cols-3 gap-2">
-            {QUESTION_COUNTS.map((count) => (
-              <button
-                key={count}
-                id={`question-count-${count}`}
-                type="button"
-                onClick={() => onQuestionCountChange(count)}
-                className={`py-2.5 rounded-lg text-sm font-600 border transition-colors ${
-                  questionCount === count
-                    ? 'border-teal-500/40 bg-teal-500/15 text-teal-400'
-                    : 'border-border-subtle bg-surface-1 text-text-3 hover:text-text-2'
-                }`}
-              >
-                {copy.studySetup.questionLabel.replace('{count}', count)}
-              </button>
-            ))}
-          </div>
+          {canConfigureQuestions ? (
+            <div className="rounded-lg border border-border-subtle bg-surface-1 p-4">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-2xl font-['Plus_Jakarta_Sans'] font-800 text-teal-400">
+                    {copy.studySetup.questionLabel.replace('{count}', safeQuestionCount)}
+                  </p>
+                  <p className="text-xs text-text-3 mt-1">
+                    {copy.studySetup.questionRange
+                      .replace('{topics}', selectedCount)
+                      .replace('{min}', minimumQuestions)
+                      .replace('{max}', maxQuestions)}
+                  </p>
+                </div>
+                <p className="text-xs text-right text-text-3 max-w-48">{formatDistribution()}</p>
+              </div>
+              <input
+                id="question-count-slider"
+                type="range"
+                min={minimumQuestions}
+                max={maxQuestions}
+                value={safeQuestionCount}
+                onChange={(event) => onQuestionCountChange(Number(event.target.value))}
+                className="mt-5 w-full accent-teal-400"
+              />
+              <p className="text-xs text-text-3 mt-3">{copy.studySetup.coverageHelp}</p>
+            </div>
+          ) : (
+            <p className="rounded-lg border border-gold-400/30 bg-gold-400/5 p-3 text-sm text-gold-400">
+              {copy.studySetup.topicLimit.replace('{max}', maxQuestions)}
+            </p>
+          )}
         </fieldset>
 
         <fieldset>
@@ -153,7 +190,7 @@ export default function StudySetup({
         id="start-study-session-btn"
         type="button"
         onClick={onStart}
-        disabled={selectedTopicIds.length === 0}
+        disabled={!canConfigureQuestions}
         className="btn-primary w-full"
       >
         <CheckSquare className="w-4 h-4" />
