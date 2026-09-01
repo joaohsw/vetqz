@@ -1,4 +1,4 @@
-# 🐾 vetQz
+# vetQz
 
 > Plataforma gamificada de trivia e avaliação oral para estudantes de Anatomia Veterinária, baseada em IA.
 
