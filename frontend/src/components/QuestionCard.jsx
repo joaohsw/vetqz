@@ -39,15 +39,17 @@ export default function QuestionCard({
         <h3 className="text-xs font-['Plus_Jakarta_Sans'] font-600 text-teal-400 uppercase tracking-widest">
           {copy.questionCard.title}
         </h3>
-        <button
-          id="new-question-btn"
-          onClick={onNewQuestion}
-          disabled={isLoading}
-          className="flex items-center gap-1.5 text-xs text-text-3 hover:text-teal-400 transition-colors px-2 py-1 rounded-md hover:bg-surface-2"
-        >
-          <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
-          {copy.questionCard.newQuestion}
-        </button>
+        {onNewQuestion && (
+          <button
+            id="new-question-btn"
+            onClick={onNewQuestion}
+            disabled={isLoading}
+            className="flex items-center gap-1.5 text-xs text-text-3 hover:text-teal-400 transition-colors px-2 py-1 rounded-md hover:bg-surface-2"
+          >
+            <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
+            {copy.questionCard.newQuestion}
+          </button>
+        )}
       </div>
 
       {/* Question */}

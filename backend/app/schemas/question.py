@@ -18,6 +18,15 @@ class GenerateQuestionRequest(BaseModel):
         None,
         description="Índice do chunk a usar. Se None, seleciona aleatoriamente.",
     )
+    chunk_indices: list[int] | None = Field(
+        None,
+        description="Trechos elegíveis para a pergunta. Limita a geração aos assuntos escolhidos.",
+    )
+    topic_title: str | None = Field(
+        None,
+        max_length=180,
+        description="Assunto em foco, usado para manter a pergunta alinhada à sessão.",
+    )
 
 
 class GenerateQuestionResponse(BaseModel):
@@ -25,3 +34,4 @@ class GenerateQuestionResponse(BaseModel):
     question: str = Field(..., description="Pergunta gerada pela IA")
     reference_answer: str = Field(..., description="Resposta de referência da IA")
     chunk_used: str = Field(..., description="Trecho do PDF usado como contexto")
+    topic_title: str | None = Field(None, description="Assunto selecionado para a pergunta")

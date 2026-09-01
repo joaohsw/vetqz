@@ -60,6 +60,19 @@ async def generate_question_endpoint(request: GenerateQuestionRequest):
         )
 
     # --- SELECIONA CHUNK ---
+    eligible_indices = list(range(len(chunks)))
+    if request.chunk_indices is not None:
+        eligible_indices = sorted({
+            index
+            for index in request.chunk_indices
+            if 0 <= index < len(chunks)
+        })
+        if not eligible_indices:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=api_message(request.language, 'no_eligible_chunks'),
+            )
+
     if request.chunk_index is not None:
         if request.chunk_index < 0 or request.chunk_index >= len(chunks):
             raise HTTPException(
@@ -71,13 +84,22 @@ async def generate_question_endpoint(request: GenerateQuestionRequest):
                     maximum=len(chunks) - 1,
                 ),
             )
+        if request.chunk_index not in eligible_indices:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=api_message(request.language, 'chunk_not_selected'),
+            )
         selected_chunk = chunks[request.chunk_index]
     else:
-        selected_chunk = random.choice(chunks)
+        selected_chunk = chunks[random.choice(eligible_indices)]
 
     # --- GERA PERGUNTA VIA GEMINI ---
     try:
-        gemini_response = await generate_question(selected_chunk, request.language)
+        gemini_response = await generate_question(
+            selected_chunk,
+            request.language,
+            request.topic_title,
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -88,4 +110,5 @@ async def generate_question_endpoint(request: GenerateQuestionRequest):
         question=gemini_response.get("question", ""),
         reference_answer=gemini_response.get("reference_answer", ""),
         chunk_used=selected_chunk,
+        topic_title=request.topic_title,
     )
