@@ -12,6 +12,8 @@ SEGURANÇA:
 - Delimitadores XML nos prompts do Gemini.
 """
 
+import json
+
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.config import settings
@@ -19,6 +21,7 @@ from app.localization import api_message
 from app.schemas.evaluation import EvaluateAnswerResponse
 from app.schemas.language import DEFAULT_LANGUAGE, SupportedLanguage
 from app.services.gemini_service import evaluate_answer
+from app.services.pdf_service import normalize_document_chunks, validate_source_excerpt
 from app.services.supabase_client import get_supabase_client
 from app.services.storage_service import upload_audio
 
@@ -66,6 +69,40 @@ async def read_validated_audio(
     return audio_bytes, content_type
 
 
+def get_source_reference(
+    document_id: str | None,
+    chunk_index: int | None,
+    source_excerpt: str | None,
+) -> dict | None:
+    """Recupera a fonte diretamente do documento, sem confiar no cliente."""
+    if not document_id or chunk_index is None or chunk_index < 0:
+        return None
+
+    try:
+        supabase = get_supabase_client()
+        result = (
+            supabase.table("documents")
+            .select("chunks")
+            .eq("id", document_id)
+            .execute()
+        )
+        if not result.data:
+            return None
+        raw_chunks = result.data[0]["chunks"]
+        raw_chunks = json.loads(raw_chunks) if isinstance(raw_chunks, str) else raw_chunks
+        chunks = normalize_document_chunks(raw_chunks)
+        if chunk_index >= len(chunks):
+            return None
+        chunk = chunks[chunk_index]
+        return {
+            "excerpt": validate_source_excerpt(source_excerpt, str(chunk["text"])),
+            "page_number": chunk["page_number"],
+        }
+    except Exception as error:
+        print(f"[vetQz] Unable to load source reference: {error}")
+        return None
+
+
 @router.post(
     "/evaluate-answer",
     response_model=EvaluateAnswerResponse,
@@ -77,6 +114,9 @@ async def evaluate_answer_endpoint(
     reference_answer: str = Form(...),
     student_answer: str = Form(...),
     language: SupportedLanguage = Form(DEFAULT_LANGUAGE),
+    document_id: str | None = Form(None),
+    chunk_index: int | None = Form(None),
+    source_excerpt: str | None = Form(None),
     audio: UploadFile | None = File(None),
 ):
     """
@@ -87,6 +127,7 @@ async def evaluate_answer_endpoint(
     4. Retorna score, feedback e model_answer.
     """
     audio_path = None
+    source = get_source_reference(document_id, chunk_index, source_excerpt)
 
     # --- VALIDAÇÃO E UPLOAD DO ÁUDIO (opcional) ---
     if audio and audio.filename:
@@ -132,5 +173,9 @@ async def evaluate_answer_endpoint(
     return EvaluateAnswerResponse(
         score=gemini_result.get("score", 0),
         feedback=gemini_result.get("feedback", ""),
+        strengths=gemini_result.get("strengths", []),
+        improvements=gemini_result.get("improvements", []),
+        next_step=gemini_result.get("next_step", ""),
         model_answer=gemini_result.get("model_answer", ""),
+        source=source,
     )

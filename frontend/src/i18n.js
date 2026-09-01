@@ -128,6 +128,32 @@ export const translations = {
     result: {
       title: 'Resultado',
       feedback: 'Feedback',
+      strengths: 'Você acertou',
+      improvements: 'Para melhorar',
+      nextStep: 'Na próxima tentativa',
+      source: 'Base no material',
+      sourcePage: 'Página {page} do PDF',
+      sourcePageUnavailable: 'Página não disponível para documentos enviados anteriormente.',
+      recommendedAction: 'Próximo passo recomendado',
+      recommendations: {
+        review: {
+          title: 'Revise o trecho e tente responder novamente.',
+          description: 'Use a base do material para completar os pontos que ficaram faltando.',
+          action: 'Refazer esta pergunta',
+        },
+        practice: {
+          title: 'Pratique mais uma pergunta deste assunto.',
+          description: 'Você já tem uma boa base; uma nova questão ajuda a consolidar os detalhes.',
+          action: 'Outra pergunta deste assunto',
+        },
+        advance: {
+          title: 'Continue para a próxima pergunta.',
+          description: 'Você demonstrou domínio suficiente para avançar na sessão.',
+          lastDescription: 'Você concluiu a sessão. Revise seu desempenho geral.',
+          action: 'Continuar sessão',
+          lastAction: 'Ver resumo da sessão',
+        },
+      },
       modelAnswer: 'Resposta exemplar',
       scoreLabels: {
         excellent: 'Excelente',
@@ -263,6 +289,32 @@ export const translations = {
     result: {
       title: 'Resultado',
       feedback: 'Retroalimentación',
+      strengths: 'Lo que acertaste',
+      improvements: 'Para mejorar',
+      nextStep: 'En el próximo intento',
+      source: 'Base en el material',
+      sourcePage: 'Página {page} del PDF',
+      sourcePageUnavailable: 'Página no disponible para documentos cargados anteriormente.',
+      recommendedAction: 'Siguiente paso recomendado',
+      recommendations: {
+        review: {
+          title: 'Revisa el fragmento e intenta responder de nuevo.',
+          description: 'Usa la base del material para completar los puntos que faltaron.',
+          action: 'Repetir esta pregunta',
+        },
+        practice: {
+          title: 'Practica una pregunta más sobre este tema.',
+          description: 'Ya tienes una buena base; otra pregunta ayuda a consolidar los detalles.',
+          action: 'Otra pregunta de este tema',
+        },
+        advance: {
+          title: 'Continúa con la siguiente pregunta.',
+          description: 'Demostraste suficiente dominio para avanzar en la sesión.',
+          lastDescription: 'Completaste la sesión. Revisa tu desempeño general.',
+          action: 'Continuar sesión',
+          lastAction: 'Ver resumen de la sesión',
+        },
+      },
       modelAnswer: 'Respuesta modelo',
       scoreLabels: {
         excellent: 'Excelente',

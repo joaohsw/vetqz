@@ -15,7 +15,7 @@ from app.config import settings
 from app.localization import api_message
 from app.schemas.language import DEFAULT_LANGUAGE, SupportedLanguage
 from app.schemas.pdf import UploadPDFResponse
-from app.services.pdf_service import extract_text_from_pdf, chunk_text
+from app.services.pdf_service import chunk_pages, extract_text_by_page
 from app.services.supabase_client import get_supabase_client
 from app.services.storage_service import upload_pdf
 
@@ -66,21 +66,21 @@ async def upload_pdf_endpoint(
 
     # --- EXTRAÇÃO DE TEXTO ---
     try:
-        full_text, num_pages = extract_text_from_pdf(file_bytes)
+        page_texts, num_pages = extract_text_by_page(file_bytes)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=api_message(language, 'pdf_processing', error=str(e)),
         )
 
-    if not full_text.strip():
+    if not any(page_texts):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=api_message(language, 'pdf_no_text'),
         )
 
     # --- CHUNKING ---
-    chunks = chunk_text(full_text)
+    chunks = chunk_pages(page_texts)
 
     # --- UPLOAD AO STORAGE ---
     try:
