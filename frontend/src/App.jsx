@@ -35,7 +35,7 @@ export default function App() {
 
   return (
     <Layout language={language} onLanguageChange={setLanguage}>
-      <Home key={language} language={language} />
+      <Home language={language} />
     </Layout>
   );
 }
