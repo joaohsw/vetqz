@@ -39,6 +39,8 @@ const FEEDBACK_MODES = {
   FINAL: 'final',
 };
 
+const MAX_SESSION_QUESTIONS = 20;
+
 function createQuestionPlan(selectedTopics, questionCount) {
   return Array.from(
     { length: questionCount },
@@ -58,7 +60,7 @@ export default function Home({ language }) {
   const [selectedTopicIds, setSelectedTopicIds] = useState([]);
 
   // Session preferences and progress
-  const [questionCount, setQuestionCount] = useState(5);
+  const [questionCount, setQuestionCount] = useState(1);
   const [feedbackMode, setFeedbackMode] = useState(FEEDBACK_MODES.IMMEDIATE);
   const [questionPlan, setQuestionPlan] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -153,7 +155,9 @@ export default function Home({ language }) {
       setDocumentName(upload.filename);
       setTotalChunks(upload.chunks.length);
       setTopics(analysis.topics);
-      setSelectedTopicIds(analysis.topics.map((topic) => topic.id));
+      const allTopicIds = analysis.topics.map((topic) => topic.id);
+      setSelectedTopicIds(allTopicIds);
+      setQuestionCount(Math.min(allTopicIds.length, MAX_SESSION_QUESTIONS));
       setStep(STEPS.SETUP);
     } catch (requestError) {
       setError(requestError.message);
@@ -164,12 +168,23 @@ export default function Home({ language }) {
 
   const handleStartSession = async () => {
     const selectedTopics = topics.filter((topic) => selectedTopicIds.includes(topic.id));
-    if (!selectedTopics.length) return;
+    if (!selectedTopics.length || selectedTopics.length > MAX_SESSION_QUESTIONS) return;
 
-    const plan = createQuestionPlan(selectedTopics, questionCount);
+    const totalQuestions = Math.max(
+      selectedTopics.length,
+      Math.min(questionCount, MAX_SESSION_QUESTIONS),
+    );
+    const plan = createQuestionPlan(selectedTopics, totalQuestions);
     setQuestionPlan(plan);
     setSessionResults([]);
     await loadQuestion(0, plan);
+  };
+
+  const handleSelectedTopicsChange = (topicIds) => {
+    setSelectedTopicIds(topicIds);
+    if (topicIds.length > 0 && topicIds.length <= MAX_SESSION_QUESTIONS) {
+      setQuestionCount((currentCount) => Math.max(topicIds.length, currentCount));
+    }
   };
 
   const advanceSession = async () => {
@@ -343,9 +358,10 @@ export default function Home({ language }) {
         <StudySetup
           topics={topics}
           selectedTopicIds={selectedTopicIds}
-          onSelectedTopicsChange={setSelectedTopicIds}
+          onSelectedTopicsChange={handleSelectedTopicsChange}
           questionCount={questionCount}
           onQuestionCountChange={setQuestionCount}
+          maxQuestions={MAX_SESSION_QUESTIONS}
           feedbackMode={feedbackMode}
           onFeedbackModeChange={setFeedbackMode}
           onStart={handleStartSession}

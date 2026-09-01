@@ -74,8 +74,14 @@ export const translations = {
       clearAll: 'Limpar seleção',
       excerptCount: '{count} trechos relacionados',
       sessionTitle: 'Configurar sessão',
-      questionCount: 'Quantidade de perguntas',
+      questionCount: 'Perguntas da sessão',
       questionLabel: '{count} perguntas',
+      questionRange: '{topics} assuntos selecionados · de {min} a {max} perguntas',
+      oneQuestionEach: '1 pergunta para cada assunto.',
+      questionsEach: '{count} perguntas para cada assunto.',
+      distributionExtra: '{base} Mais 1 pergunta para {count} assuntos.',
+      coverageHelp: 'A primeira rodada cobre todos os assuntos. As perguntas extras são distribuídas de modo equilibrado.',
+      topicLimit: 'Selecione no máximo {max} assuntos para garantir uma pergunta por assunto.',
       feedbackTiming: 'Quando quer receber o feedback?',
       feedbackModes: {
         immediate: {
@@ -235,8 +241,14 @@ export const translations = {
       clearAll: 'Limpiar selección',
       excerptCount: '{count} fragmentos relacionados',
       sessionTitle: 'Configurar sesión',
-      questionCount: 'Cantidad de preguntas',
+      questionCount: 'Preguntas de la sesión',
       questionLabel: '{count} preguntas',
+      questionRange: '{topics} temas seleccionados · de {min} a {max} preguntas',
+      oneQuestionEach: '1 pregunta para cada tema.',
+      questionsEach: '{count} preguntas para cada tema.',
+      distributionExtra: '{base} Una pregunta más para {count} temas.',
+      coverageHelp: 'La primera ronda cubre todos los temas. Las preguntas adicionales se distribuyen de forma equilibrada.',
+      topicLimit: 'Selecciona como máximo {max} temas para garantizar una pregunta por tema.',
       feedbackTiming: '¿Cuándo quieres recibir la retroalimentación?',
       feedbackModes: {
         immediate: {
