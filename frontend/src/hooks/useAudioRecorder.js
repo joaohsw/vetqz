@@ -13,18 +13,18 @@ import { formatMessage, getTranslations } from '../i18n';
  */
 
 /**
- * Detecta se o navegador é Chrome ou Safari genuínos — os únicos com suporte
- * confiável à Web Speech API. Forks Chromium (Opera, Opera GX, Brave, Vivaldi,
- * Edge) expõem o objeto `webkitSpeechRecognition`, mas nenhum evento dispara.
+ * Detecta se o navegador é Chrome, Edge ou Safari — os únicos com suporte
+ * confiável à Web Speech API. Outros forks Chromium (Opera, Opera GX, Brave,
+ * Vivaldi) expõem o objeto `webkitSpeechRecognition`, mas nenhum evento dispara.
  */
 function detectLikelySupportedBrowser() {
   if (typeof navigator === 'undefined') return true;
 
   const ua = navigator.userAgent;
-  const isChrome = /Chrome\//.test(ua) && !/Edg\/|OPR\/|Brave\//.test(ua);
+  const isChromeOrEdge = /Chrome\//.test(ua) && !/OPR\/|Brave\//.test(ua);
   const isSafari = /Safari\//.test(ua) && !/Chrome\/|Chromium\/|Android/.test(ua);
 
-  return isChrome || isSafari;
+  return isChromeOrEdge || isSafari;
 }
 
 export function useAudioRecorder(language) {

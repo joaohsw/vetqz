@@ -123,7 +123,7 @@ export const translations = {
       unsupported:
         'Seu navegador não oferece transcrição automática. Use Chrome/Edge ou digite a resposta.',
       browserMaybeUnsupported:
-        'Talvez seu navegador não suporte gravação/transcrição de voz. Tente trocar para o Chrome ou Safari.',
+        'Talvez seu navegador não suporte gravação/transcrição de voz. Tente trocar para o Chrome ou Edge.',
       unreliableBrowser:
         'A transcrição automática não está funcionando neste navegador (comum em Opera/Opera GX). Use Chrome/Edge ou digite a resposta.',
       canEdit: 'Você ainda pode corrigir ou digitar a resposta.',
@@ -299,7 +299,7 @@ export const translations = {
       unsupported:
         'Tu navegador no ofrece transcripción automática. Usa Chrome/Edge o escribe la respuesta.',
       browserMaybeUnsupported:
-        'Puede que tu navegador no sea compatible con la grabación/transcripción de voz. Intenta cambiar a Chrome o Safari.',
+        'Puede que tu navegador no sea compatible con la grabación/transcripción de voz. Intenta cambiar a Chrome o Edge.',
       unreliableBrowser:
         'La transcripción automática no está funcionando en este navegador (frecuente en Opera/Opera GX). Usa Chrome/Edge o escribe la respuesta.',
       canEdit: 'Aún puedes corregir o escribir la respuesta.',
