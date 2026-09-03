@@ -49,3 +49,7 @@ desktop.ini
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Copilot caveman
+/.agents
+skills-lock.json
