@@ -10,6 +10,17 @@
     <meta name="description" content="Plataforma gamificada de trivia e avaliação oral para estudantes de Anatomia Veterinária. Estude com IA, grave suas respostas e receba feedback instantâneo." />
     <meta name="keywords" content="anatomia veterinária, quiz, IA, gamificação, estudo" />
 
+    <!-- Apply saved theme before first paint to avoid a dark/light flash -->
+    <script>
+      (function () {
+        try {
+          if (window.localStorage.getItem('vetqz-theme') === 'light') {
+            document.documentElement.classList.add('light');
+          }
+        } catch (e) {}
+      })();
+    </script>
+
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
