@@ -5,8 +5,8 @@
  * No emoji, proper icon-driven states, quiet motion.
  */
 
-import { useEffect } from 'react';
-import { Mic, Pause, Play, Square, RotateCcw, AlertCircle, FileText } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Mic, Pause, Play, Square, RotateCcw, AlertCircle, FileText, X } from 'lucide-react';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { getTranslations } from '../i18n';
 
@@ -37,6 +37,20 @@ export default function AudioRecorder({
     resetRecording,
   } = useAudioRecorder(language);
 
+  const [warningDismissed, setWarningDismissed] = useState(false);
+
+  const browserWarningMessage = !isSpeechRecognitionSupported
+    ? copy.audio.unsupported
+    : recognitionUnavailable
+      ? copy.audio.unreliableBrowser
+      : !isBrowserLikelySupported
+        ? copy.audio.browserMaybeUnsupported
+        : null;
+
+  useEffect(() => {
+    setWarningDismissed(false);
+  }, [browserWarningMessage]);
+
   useEffect(() => {
     if (audioBlob) onRecordingComplete?.(audioBlob);
   }, [audioBlob, onRecordingComplete]);
@@ -56,6 +70,21 @@ export default function AudioRecorder({
         <Mic className="w-3.5 h-3.5 text-teal-400" />
         {copy.audio.title}
       </h3>
+
+      {browserWarningMessage && !warningDismissed && (
+        <div className="relative mb-5 flex items-start gap-2 text-sm text-gold-400 bg-gold-500/10 rounded-lg pl-4 pr-9 py-3">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>{browserWarningMessage}</span>
+          <button
+            type="button"
+            onClick={() => setWarningDismissed(true)}
+            aria-label={copy.audio.dismissWarning}
+            className="absolute top-2 right-2 p-1 rounded-md text-gold-400/70 hover:text-gold-400 hover:bg-gold-500/10"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Timer */}
       <div className="text-center mb-6">
@@ -202,27 +231,6 @@ export default function AudioRecorder({
           {copy.audio.reviewTranscript}
         </p>
       </div>
-
-      {!isSpeechRecognitionSupported && (
-        <div className="mt-4 flex items-start gap-2 text-sm text-gold-400 bg-gold-500/10 rounded-lg px-4 py-3">
-          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>{copy.audio.unsupported}</span>
-        </div>
-      )}
-
-      {isSpeechRecognitionSupported && !isBrowserLikelySupported && (
-        <div className="mt-4 flex items-start gap-2 text-sm text-gold-400 bg-gold-500/10 rounded-lg px-4 py-3">
-          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>{copy.audio.browserMaybeUnsupported}</span>
-        </div>
-      )}
-
-      {isSpeechRecognitionSupported && isBrowserLikelySupported && recognitionUnavailable && (
-        <div className="mt-4 flex items-start gap-2 text-sm text-gold-400 bg-gold-500/10 rounded-lg px-4 py-3">
-          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>{copy.audio.unreliableBrowser}</span>
-        </div>
-      )}
 
       {transcriptionError && (
         <div className="mt-4 flex items-start gap-2 text-sm text-gold-400 bg-gold-500/10 rounded-lg px-4 py-3">
