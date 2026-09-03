@@ -76,6 +76,10 @@ export const translations = {
       reviewTranscript: 'Revise e corrija a transcrição antes de enviar.',
       unsupported:
         'Seu navegador não oferece transcrição automática. Use Chrome/Edge ou digite a resposta.',
+      browserMaybeUnsupported:
+        'Talvez seu navegador não suporte gravação/transcrição de voz. Tente trocar para o Chrome ou Safari.',
+      unreliableBrowser:
+        'A transcrição automática não está funcionando neste navegador (comum em Opera/Opera GX). Use Chrome/Edge ou digite a resposta.',
       canEdit: 'Você ainda pode corrigir ou digitar a resposta.',
       errors: {
         transcriptionDenied: 'Permissão para transcrição negada.',
@@ -174,6 +178,10 @@ export const translations = {
       reviewTranscript: 'Revisa y corrige la transcripción antes de enviarla.',
       unsupported:
         'Tu navegador no ofrece transcripción automática. Usa Chrome/Edge o escribe la respuesta.',
+      browserMaybeUnsupported:
+        'Puede que tu navegador no sea compatible con la grabación/transcripción de voz. Intenta cambiar a Chrome o Safari.',
+      unreliableBrowser:
+        'La transcripción automática no está funcionando en este navegador (frecuente en Opera/Opera GX). Usa Chrome/Edge o escribe la respuesta.',
       canEdit: 'Aún puedes corregir o escribir la respuesta.',
       errors: {
         transcriptionDenied: 'Se denegó el permiso para la transcripción.',

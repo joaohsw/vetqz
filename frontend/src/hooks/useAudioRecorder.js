@@ -12,6 +12,21 @@ import { formatMessage, getTranslations } from '../i18n';
  * @typedef {'idle' | 'recording' | 'paused'} RecordingStatus
  */
 
+/**
+ * Detecta se o navegador é Chrome ou Safari genuínos — os únicos com suporte
+ * confiável à Web Speech API. Forks Chromium (Opera, Opera GX, Brave, Vivaldi,
+ * Edge) expõem o objeto `webkitSpeechRecognition`, mas nenhum evento dispara.
+ */
+function detectLikelySupportedBrowser() {
+  if (typeof navigator === 'undefined') return true;
+
+  const ua = navigator.userAgent;
+  const isChrome = /Chrome\//.test(ua) && !/Edg\/|OPR\/|Brave\//.test(ua);
+  const isSafari = /Safari\//.test(ua) && !/Chrome\/|Chromium\/|Android/.test(ua);
+
+  return isChrome || isSafari;
+}
+
 export function useAudioRecorder(language) {
   const copy = getTranslations(language);
   const [status, setStatus] = useState('idle');
@@ -21,6 +36,7 @@ export function useAudioRecorder(language) {
   const [error, setError] = useState(null);
   const [transcript, setTranscript] = useState('');
   const [transcriptionError, setTranscriptionError] = useState(null);
+  const [recognitionUnavailable, setRecognitionUnavailable] = useState(false);
 
   const mediaRecorder = useRef(null);
   const audioChunks = useRef([]);
@@ -31,12 +47,14 @@ export function useAudioRecorder(language) {
   const shouldRestartRecognition = useRef(false);
   const mediaStream = useRef(null);
   const audioUrlRef = useRef(null);
+  const hasRecognitionStartedRef = useRef(false);
 
   const SpeechRecognition =
     typeof window !== 'undefined'
       ? window.SpeechRecognition || window.webkitSpeechRecognition
       : null;
   const isSpeechRecognitionSupported = Boolean(SpeechRecognition);
+  const isBrowserLikelySupported = detectLikelySupportedBrowser();
 
   /** Inicia/reinicia a transcrição nativa do navegador. */
   const startSpeechRecognition = useCallback((resetTranscript = false) => {
@@ -46,6 +64,7 @@ export function useAudioRecorder(language) {
       finalTranscript.current = '';
       setTranscript('');
       setTranscriptionError(null);
+      setRecognitionUnavailable(false);
     }
 
     if (!speechRecognition.current) {
@@ -53,6 +72,10 @@ export function useAudioRecorder(language) {
       recognition.lang = language;
       recognition.continuous = true;
       recognition.interimResults = true;
+
+      recognition.onstart = () => {
+        hasRecognitionStartedRef.current = true;
+      };
 
       recognition.onresult = (event) => {
         let interimTranscript = '';
@@ -84,11 +107,22 @@ export function useAudioRecorder(language) {
         );
       };
 
+      // Alguns navegadores (ex.: Opera/Opera GX) expõem a API mas nunca
+      // conseguem iniciar a sessão real — onend dispara sem onstart/onerror.
       recognition.onend = () => {
+        const failedToStart = !hasRecognitionStartedRef.current && shouldRestartRecognition.current;
+
+        if (failedToStart) {
+          shouldRestartRecognition.current = false;
+          setRecognitionUnavailable(true);
+          return;
+        }
+
         if (
           shouldRestartRecognition.current &&
           mediaRecorder.current?.state === 'recording'
         ) {
+          hasRecognitionStartedRef.current = false;
           try {
             recognition.start();
           } catch {
@@ -101,6 +135,7 @@ export function useAudioRecorder(language) {
     }
 
     shouldRestartRecognition.current = true;
+    hasRecognitionStartedRef.current = false;
     try {
       speechRecognition.current.start();
     } catch {
@@ -242,6 +277,7 @@ export function useAudioRecorder(language) {
     setError(null);
     setTranscript('');
     setTranscriptionError(null);
+    setRecognitionUnavailable(false);
     setStatus('idle');
     audioChunks.current = [];
     finalTranscript.current = '';
@@ -281,6 +317,8 @@ export function useAudioRecorder(language) {
     transcript,
     transcriptionError,
     isSpeechRecognitionSupported,
+    isBrowserLikelySupported,
+    recognitionUnavailable,
     startRecording,
     stopRecording,
     pauseRecording,

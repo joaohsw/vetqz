@@ -28,6 +28,8 @@ export default function AudioRecorder({
     transcript,
     transcriptionError,
     isSpeechRecognitionSupported,
+    isBrowserLikelySupported,
+    recognitionUnavailable,
     startRecording,
     stopRecording,
     pauseRecording,
@@ -205,6 +207,20 @@ export default function AudioRecorder({
         <div className="mt-4 flex items-start gap-2 text-sm text-gold-400 bg-gold-500/10 rounded-lg px-4 py-3">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
           <span>{copy.audio.unsupported}</span>
+        </div>
+      )}
+
+      {isSpeechRecognitionSupported && !isBrowserLikelySupported && (
+        <div className="mt-4 flex items-start gap-2 text-sm text-gold-400 bg-gold-500/10 rounded-lg px-4 py-3">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>{copy.audio.browserMaybeUnsupported}</span>
+        </div>
+      )}
+
+      {isSpeechRecognitionSupported && isBrowserLikelySupported && recognitionUnavailable && (
+        <div className="mt-4 flex items-start gap-2 text-sm text-gold-400 bg-gold-500/10 rounded-lg px-4 py-3">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>{copy.audio.unreliableBrowser}</span>
         </div>
       )}
 
