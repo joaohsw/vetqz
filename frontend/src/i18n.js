@@ -15,6 +15,9 @@ export const translations = {
     layout: {
       languageSelector: 'Selecionar idioma',
       switchTo: 'Mudar para {language}',
+      themeSelector: 'Selecionar tema',
+      switchToLight: 'Mudar para modo claro',
+      switchToDark: 'Mudar para modo escuro',
       footer: 'Anatomia Veterinária com IA',
     },
     home: {
@@ -183,6 +186,9 @@ export const translations = {
     layout: {
       languageSelector: 'Seleccionar idioma',
       switchTo: 'Cambiar a {language}',
+      themeSelector: 'Seleccionar tema',
+      switchToLight: 'Cambiar a modo claro',
+      switchToDark: 'Cambiar a modo oscuro',
       footer: 'Anatomía Veterinaria con IA',
     },
     home: {
