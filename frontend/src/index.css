@@ -62,6 +62,10 @@
 
   --color-border-subtle: oklch(0.87 0.006 250);
   --color-border-default: oklch(0.78 0.008 250);
+
+  /* Teal needs more depth/chroma against light surfaces to avoid washing out */
+  --color-teal-400: oklch(0.55 0.14 185);
+  --color-teal-500: oklch(0.42 0.13 185);
 }
 
 /* ── Base ── */
