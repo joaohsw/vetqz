@@ -173,6 +173,18 @@ h1, h2, h3, h4, h5, h6 {
   outline-offset: 2px;
 }
 
+/* ── Pointer cursor for all clickable elements (not a browser default on <button>) ── */
+
+button:not(:disabled),
+[role='button']:not([aria-disabled='true']) {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
 /* ── Button system ── */
 
 .btn-primary {

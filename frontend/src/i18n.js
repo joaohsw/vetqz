@@ -15,6 +15,9 @@ export const translations = {
     layout: {
       languageSelector: 'Selecionar idioma',
       switchTo: 'Mudar para {language}',
+      themeSelector: 'Selecionar tema',
+      switchToLight: 'Mudar para modo claro',
+      switchToDark: 'Mudar para modo escuro',
       footer: 'Anatomia Veterinária com IA',
     },
     home: {
@@ -119,7 +122,12 @@ export const translations = {
       reviewTranscript: 'Revise e corrija a transcrição antes de enviar.',
       unsupported:
         'Seu navegador não oferece transcrição automática. Use Chrome/Edge ou digite a resposta.',
+      browserMaybeUnsupported:
+        'Talvez seu navegador não suporte gravação/transcrição de voz. Tente trocar para o Chrome ou Edge.',
+      unreliableBrowser:
+        'A transcrição automática não está funcionando neste navegador (comum em Opera/Opera GX). Use Chrome/Edge ou digite a resposta.',
       canEdit: 'Você ainda pode corrigir ou digitar a resposta.',
+      dismissWarning: 'Fechar aviso',
       errors: {
         transcriptionDenied: 'Permissão para transcrição negada.',
         transcriptionBlocked: 'O serviço de transcrição está bloqueado no navegador.',
@@ -183,6 +191,9 @@ export const translations = {
     layout: {
       languageSelector: 'Seleccionar idioma',
       switchTo: 'Cambiar a {language}',
+      themeSelector: 'Seleccionar tema',
+      switchToLight: 'Cambiar a modo claro',
+      switchToDark: 'Cambiar a modo oscuro',
       footer: 'Anatomía Veterinaria con IA',
     },
     home: {
@@ -287,7 +298,12 @@ export const translations = {
       reviewTranscript: 'Revisa y corrige la transcripción antes de enviarla.',
       unsupported:
         'Tu navegador no ofrece transcripción automática. Usa Chrome/Edge o escribe la respuesta.',
+      browserMaybeUnsupported:
+        'Puede que tu navegador no sea compatible con la grabación/transcripción de voz. Intenta cambiar a Chrome o Edge.',
+      unreliableBrowser:
+        'La transcripción automática no está funcionando en este navegador (frecuente en Opera/Opera GX). Usa Chrome/Edge o escribe la respuesta.',
       canEdit: 'Aún puedes corregir o escribir la respuesta.',
+      dismissWarning: 'Cerrar aviso',
       errors: {
         transcriptionDenied: 'Se denegó el permiso para la transcripción.',
         transcriptionBlocked: 'El servicio de transcripción está bloqueado en el navegador.',
