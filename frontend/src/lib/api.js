@@ -6,8 +6,23 @@
  */
 
 import { DEFAULT_LANGUAGE, formatMessage, getTranslations } from '../i18n';
+import { supabase } from './supabase';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+
+async function apiFetch(path, options = {}) {
+  const headers = new Headers(options.headers);
+  const { data, error } = await supabase.auth.getSession();
+
+  if (error) {
+    console.error('Unable to read the current session for an API request.', error);
+  }
+  if (data.session?.access_token) {
+    headers.set('Authorization', `Bearer ${data.session.access_token}`);
+  }
+
+  return fetch(`${API_BASE}${path}`, { ...options, headers });
+}
 
 async function throwApiError(response, language) {
   const copy = getTranslations(language);
@@ -28,7 +43,7 @@ export async function uploadPdf(file, language = DEFAULT_LANGUAGE) {
   formData.append('file', file);
   formData.append('language', language);
 
-  const response = await fetch(`${API_BASE}/api/upload-pdf`, {
+  const response = await apiFetch('/api/upload-pdf', {
     method: 'POST',
     body: formData,
   });
@@ -45,7 +60,7 @@ export async function uploadPdf(file, language = DEFAULT_LANGUAGE) {
  * @returns {Promise<Object>} - { topics: [{ id, title, summary, chunk_indices }] }
  */
 export async function analyzeTopics(documentId, language = DEFAULT_LANGUAGE) {
-  const response = await fetch(`${API_BASE}/api/analyze-topics`, {
+  const response = await apiFetch('/api/analyze-topics', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ document_id: documentId, language }),
@@ -75,7 +90,7 @@ export async function generateQuestion(documentId, {
   if (chunkIndices !== null) body.chunk_indices = chunkIndices;
   if (topicTitle) body.topic_title = topicTitle;
 
-  const response = await fetch(`${API_BASE}/api/generate-question`, {
+  const response = await apiFetch('/api/generate-question', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -123,7 +138,7 @@ export async function evaluateAnswer({
     formData.append('audio', audioBlob, 'recording.webm');
   }
 
-  const response = await fetch(`${API_BASE}/api/evaluate-answer`, {
+  const response = await apiFetch('/api/evaluate-answer', {
     method: 'POST',
     body: formData,
   });
