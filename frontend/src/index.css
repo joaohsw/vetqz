@@ -50,6 +50,12 @@
 
 /* ── Light theme overrides ── */
 
+:root {
+  /* Selected topic tint — dark surfaces need more opacity than light ones
+     for the same perceived contrast against the unselected state. */
+  --color-topic-selected: oklch(0.65 0.13 185 / 0.1);
+}
+
 :root.light {
   --color-surface-0: oklch(0.98 0.004 250);
   --color-surface-1: oklch(0.94 0.006 250);
@@ -66,6 +72,7 @@
   /* Teal needs more depth/chroma against light surfaces to avoid washing out */
   --color-teal-400: oklch(0.55 0.14 185);
   --color-teal-500: oklch(0.42 0.13 185);
+  --color-topic-selected: oklch(0.42 0.13 185 / 0.06);
 }
 
 /* ── Base ── */

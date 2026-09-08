@@ -99,7 +99,7 @@ export default function StudySetup({
               <label
                 key={topic.id}
                 className={`flex items-start gap-3 p-4 cursor-pointer transition-colors ${
-                  isSelected ? 'bg-teal-500/5' : 'hover:bg-surface-2'
+                  isSelected ? 'bg-[var(--color-topic-selected)]' : 'hover:bg-surface-2'
                 }`}
               >
                 <input
