@@ -32,6 +32,10 @@ export default function StudySetup({
   const topicsWithExtraQuestion = canConfigureQuestions
     ? safeQuestionCount % selectedCount
     : 0;
+  const sliderRange = maxQuestions - minimumQuestions;
+  const sliderProgress = sliderRange > 0
+    ? ((safeQuestionCount - minimumQuestions) / sliderRange) * 100
+    : 100;
 
   const formatDistribution = () => {
     const base = questionsPerTopic === 1
@@ -95,7 +99,7 @@ export default function StudySetup({
               <label
                 key={topic.id}
                 className={`flex items-start gap-3 p-4 cursor-pointer transition-colors ${
-                  isSelected ? 'bg-teal-500/5' : 'hover:bg-surface-2'
+                  isSelected ? 'bg-[var(--color-topic-selected)]' : 'hover:bg-surface-2'
                 }`}
               >
                 <input
@@ -130,7 +134,8 @@ export default function StudySetup({
               <div className="flex items-end justify-between gap-4">
                 <div>
                   <p className="text-2xl font-['Plus_Jakarta_Sans'] font-800 text-teal-400">
-                    {copy.studySetup.questionLabel.replace('{count}', safeQuestionCount)}
+                    {(safeQuestionCount === 1 ? copy.studySetup.questionLabelSingular : copy.studySetup.questionLabel)
+                      .replace('{count}', safeQuestionCount)}
                   </p>
                   <p className="text-xs text-text-3 mt-1">
                     {copy.studySetup.questionRange
@@ -148,13 +153,16 @@ export default function StudySetup({
                 max={maxQuestions}
                 value={safeQuestionCount}
                 onChange={(event) => onQuestionCountChange(Number(event.target.value))}
-                className="mt-5 w-full accent-teal-400"
+                className="slider mt-5 w-full"
+                style={{ '--slider-progress': `${sliderProgress}%` }}
               />
               <p className="text-xs text-text-3 mt-3">{copy.studySetup.coverageHelp}</p>
             </div>
           ) : (
             <p className="rounded-lg border border-gold-400/30 bg-gold-400/5 p-3 text-sm text-gold-400">
-              {copy.studySetup.topicLimit.replace('{max}', maxQuestions)}
+              {selectedCount === 0
+                ? copy.studySetup.noTopicsSelected
+                : copy.studySetup.topicLimit.replace('{max}', maxQuestions)}
             </p>
           )}
         </fieldset>

@@ -1,14 +1,46 @@
 /** Feedback formativo com fonte rastreável e próxima ação baseada na nota. */
 
+import { useState } from 'react';
 import {
   ArrowRight,
   BookMarked,
   BookOpen,
+  ChevronDown,
   RefreshCw,
   Target,
   TrendingUp,
 } from 'lucide-react';
 import { getTranslations } from '../i18n';
+
+/** Card section that expands/collapses with a smooth height transition (no native details "pop"). */
+function Collapsible({ summary, summaryClassName = '', defaultOpen = true, className = '', children }) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className={`card p-6 animate-enter ${className}`}>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className={`w-full flex items-center justify-between gap-2 text-left cursor-pointer text-xs font-['Plus_Jakarta_Sans'] font-600 uppercase tracking-widest ${summaryClassName}`}
+      >
+        <span className="flex items-center gap-2">{summary}</span>
+        <ChevronDown
+          className={`w-3.5 h-3.5 shrink-0 text-text-3 transition-transform duration-300 ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+      <div
+        className="grid transition-[grid-template-rows] duration-300 ease-out"
+        style={{ gridTemplateRows: open ? '1fr' : '0fr' }}
+      >
+        <div className="overflow-hidden">
+          {/* inert removes collapsed content from tab order/AT, not just visual clipping */}
+          <div className="pt-4" inert={!open}>{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function getScoreStyle(score, labels) {
   if (score >= 8) return { text: 'text-success', stroke: 'oklch(0.65 0.15 160)', label: labels.excellent };
@@ -48,16 +80,20 @@ function SourceCard({ source, copy }) {
     : copy.sourcePageUnavailable;
 
   return (
-    <div className="card p-6 animate-enter">
-      <h4 className="text-xs font-['Plus_Jakarta_Sans'] font-600 text-teal-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-        <BookOpen className="w-3.5 h-3.5" />
-        {copy.source}
-      </h4>
+    <Collapsible
+      summaryClassName="text-teal-400"
+      summary={(
+        <>
+          <BookOpen className="w-3.5 h-3.5" />
+          {copy.source}
+        </>
+      )}
+    >
       <blockquote className="border-l-2 border-teal-500/40 pl-3 text-sm text-text-2 leading-relaxed max-h-32 overflow-y-auto">
         “{source.excerpt}”
       </blockquote>
       <p className="text-xs text-text-3 mt-3">{page}</p>
-    </div>
+    </Collapsible>
   );
 }
 
@@ -96,11 +132,16 @@ function RecommendedAction({ score, copy, onRetryQuestion, onAnotherQuestionSame
   const Icon = content.icon;
 
   return (
-    <div className="card p-6 animate-enter border-teal-500/20">
-      <h4 className="text-xs font-['Plus_Jakarta_Sans'] font-600 text-teal-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-        <Target className="w-3.5 h-3.5" />
-        {copy.recommendedAction}
-      </h4>
+    <Collapsible
+      className="border-teal-500/20"
+      summaryClassName="text-teal-400"
+      summary={(
+        <>
+          <Target className="w-3.5 h-3.5" />
+          {copy.recommendedAction}
+        </>
+      )}
+    >
       <p className="text-sm font-600 text-text-1">{content.title}</p>
       <p className="text-sm text-text-3 leading-relaxed mt-1">{content.description}</p>
       <button type="button" id="recommended-action-btn" onClick={content.onClick} className="btn-primary w-full mt-4">
@@ -118,7 +159,7 @@ function RecommendedAction({ score, copy, onRetryQuestion, onAnotherQuestionSame
           {secondaryAction.label}
         </button>
       )}
-    </div>
+    </Collapsible>
   );
 }
 
@@ -138,19 +179,36 @@ export default function ResultCard({
 
   return (
     <div className="space-y-3 stagger">
-      <div className="card p-6 animate-enter">
-        <h3 className="text-xs font-['Plus_Jakarta_Sans'] font-600 text-teal-400 uppercase tracking-widest mb-6">{copy.title}</h3>
+      <Collapsible summaryClassName="text-teal-400" summary={copy.title}>
         <ScoreCircle score={score} labels={copy.scoreLabels} />
-      </div>
+      </Collapsible>
+
+      {feedback && (
+        <Collapsible
+          summaryClassName="text-gold-400"
+          summary={(
+            <>
+              <TrendingUp className="w-3.5 h-3.5" />
+              {copy.feedback}
+            </>
+          )}
+        >
+          <p className="text-sm text-text-2 leading-relaxed whitespace-pre-line text-pretty">{feedback}</p>
+        </Collapsible>
+      )}
 
       {modelAnswer && (
-        <div className="card p-6 animate-enter">
-          <h4 className="text-xs font-['Plus_Jakarta_Sans'] font-600 text-teal-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <BookMarked className="w-3.5 h-3.5" />
-            {copy.modelAnswer}
-          </h4>
+        <Collapsible
+          summaryClassName="text-teal-400"
+          summary={(
+            <>
+              <BookMarked className="w-3.5 h-3.5" />
+              {copy.modelAnswer}
+            </>
+          )}
+        >
           <p className="text-sm text-text-2 leading-relaxed whitespace-pre-line text-pretty">{modelAnswer}</p>
-        </div>
+        </Collapsible>
       )}
 
       <SourceCard source={source} copy={copy} />
@@ -163,16 +221,6 @@ export default function ResultCard({
         onContinue={onContinue}
         isLastQuestion={isLastQuestion}
       />
-
-      {feedback && (
-        <details className="card p-6 animate-enter">
-          <summary className="cursor-pointer text-xs font-['Plus_Jakarta_Sans'] font-600 text-gold-400 uppercase tracking-widest flex items-center gap-2">
-            <TrendingUp className="w-3.5 h-3.5" />
-            {copy.feedback}
-          </summary>
-          <p className="pt-4 text-sm text-text-2 leading-relaxed whitespace-pre-line text-pretty">{feedback}</p>
-        </details>
-      )}
     </div>
   );
 }

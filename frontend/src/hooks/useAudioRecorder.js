@@ -48,6 +48,11 @@ export function useAudioRecorder(language) {
   const mediaStream = useRef(null);
   const audioUrlRef = useRef(null);
   const hasRecognitionStartedRef = useRef(false);
+  const statusRef = useRef(status);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   const SpeechRecognition =
     typeof window !== 'undefined'
@@ -78,6 +83,11 @@ export function useAudioRecorder(language) {
       };
 
       recognition.onresult = (event) => {
+        // Ignore stray results that arrive after pause (stop()/abort() can
+        // still deliver a delayed event) — they'd overwrite text the user
+        // typed in the meantime with stale pre-pause speech.
+        if (statusRef.current !== 'recording') return;
+
         let interimTranscript = '';
 
         for (let i = event.resultIndex; i < event.results.length; i += 1) {
@@ -146,7 +156,10 @@ export function useAudioRecorder(language) {
   const stopSpeechRecognition = useCallback(() => {
     shouldRestartRecognition.current = false;
     try {
-      speechRecognition.current?.stop();
+      // abort(), not stop() — stop() finalizes gracefully and can still fire
+      // a delayed onresult after pause, overwriting text the user typed
+      // in the meantime with stale pre-pause speech.
+      speechRecognition.current?.abort();
     } catch {
       // A instância já pode estar parada.
     }
@@ -203,6 +216,7 @@ export function useAudioRecorder(language) {
       };
 
       mediaRecorder.current.start(250); // Coleta dados a cada 250ms
+      statusRef.current = 'recording';
       setStatus('recording');
       startSpeechRecognition(true);
 
@@ -217,6 +231,7 @@ export function useAudioRecorder(language) {
           ? copy.audio.errors.microphoneDenied
           : formatMessage(copy.audio.errors.microphoneGeneric, { error: err.message })
       );
+      statusRef.current = 'idle';
       setStatus('idle');
     }
   }, [copy, startSpeechRecognition]);
@@ -228,6 +243,7 @@ export function useAudioRecorder(language) {
     if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
       mediaRecorder.current.stop();
       stopSpeechRecognition();
+      statusRef.current = 'idle';
       setStatus('idle');
     }
   }, [stopSpeechRecognition]);
@@ -239,6 +255,7 @@ export function useAudioRecorder(language) {
     if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
       mediaRecorder.current.pause();
       stopSpeechRecognition();
+      statusRef.current = 'paused';
       setStatus('paused');
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -247,12 +264,19 @@ export function useAudioRecorder(language) {
   }, [stopSpeechRecognition]);
 
   /**
-   * Retoma a gravação pausada.
+   * Retoma a gravação pausada. Recebe o texto atual da transcrição (que pode
+   * ter sido editado manualmente enquanto pausado) para continuar
+   * anexando o reconhecimento de fala a partir dele, em vez de sobrescrevê-lo.
    */
-  const resumeRecording = useCallback(() => {
+  const resumeRecording = useCallback((currentTranscript) => {
     if (mediaRecorder.current && mediaRecorder.current.state === 'paused') {
+      if (typeof currentTranscript === 'string' && currentTranscript !== finalTranscript.current) {
+        finalTranscript.current = currentTranscript;
+        setTranscript(currentTranscript);
+      }
       mediaRecorder.current.resume();
       startSpeechRecognition(false);
+      statusRef.current = 'recording';
       setStatus('recording');
       const elapsed = duration;
       startTimeRef.current = Date.now() - elapsed * 1000;
@@ -278,6 +302,7 @@ export function useAudioRecorder(language) {
     setTranscript('');
     setTranscriptionError(null);
     setRecognitionUnavailable(false);
+    statusRef.current = 'idle';
     setStatus('idle');
     audioChunks.current = [];
     finalTranscript.current = '';

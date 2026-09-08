@@ -50,6 +50,12 @@
 
 /* ── Light theme overrides ── */
 
+:root {
+  /* Selected topic tint — dark surfaces need more opacity than light ones
+     for the same perceived contrast against the unselected state. */
+  --color-topic-selected: oklch(0.65 0.13 185 / 0.1);
+}
+
 :root.light {
   --color-surface-0: oklch(0.98 0.004 250);
   --color-surface-1: oklch(0.94 0.006 250);
@@ -66,6 +72,7 @@
   /* Teal needs more depth/chroma against light surfaces to avoid washing out */
   --color-teal-400: oklch(0.55 0.14 185);
   --color-teal-500: oklch(0.42 0.13 185);
+  --color-topic-selected: oklch(0.42 0.13 185 / 0.06);
 }
 
 /* ── Base ── */
@@ -89,22 +96,24 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ── Card system ── */
 
-.card {
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 12px;
-  transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out;
-}
+@layer components {
+  .card {
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 12px;
+    transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out;
+  }
 
-.card:hover {
-  border-color: var(--color-border-default);
-}
+  .card:hover {
+    border-color: var(--color-border-default);
+  }
 
-.card-elevated {
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 12px;
-  box-shadow: 0 1px 3px oklch(0 0 0 / 0.2), 0 4px 12px oklch(0 0 0 / 0.1);
+  .card-elevated {
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.2), 0 4px 12px oklch(0 0 0 / 0.1);
+  }
 }
 
 /* ── Accent border (left) — used sparingly for active/featured states only ── */
@@ -205,65 +214,151 @@ button:disabled,
   cursor: not-allowed;
 }
 
-/* ── Button system ── */
+/* ── Button system ──
+   Wrapped in @layer components so utility classes (e.g. w-10 h-10 p-0
+   rounded-full) composed alongside these in JSX can still override them —
+   unlayered CSS otherwise always wins over Tailwind's layered utilities. */
 
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: var(--color-surface-0);
-  background: var(--color-teal-500);
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s ease-out, transform 0.1s ease-out;
-  text-wrap: nowrap;
-}
+@layer components {
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--color-surface-0);
+    background: var(--color-teal-500);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s ease-out, transform 0.1s ease-out;
+    text-wrap: nowrap;
+  }
 
-.btn-primary:hover {
-  background: var(--color-teal-400);
-}
+  .btn-primary:hover {
+    background: var(--color-teal-400);
+  }
 
-.btn-primary:active {
-  transform: scale(0.98);
-}
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
 
-.btn-primary:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  transform: none;
-}
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+  }
 
-.btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: var(--color-text-2);
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s ease-out, border-color 0.2s ease-out, color 0.2s ease-out;
-}
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--color-text-2);
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s ease-out, border-color 0.2s ease-out, color 0.2s ease-out;
+  }
 
-.btn-secondary:hover {
-  background: var(--color-surface-3);
-  border-color: var(--color-border-default);
-  color: var(--color-text-1);
-}
+  .btn-secondary:hover {
+    background: var(--color-surface-3);
+    border-color: var(--color-border-default);
+    color: var(--color-text-1);
+  }
 
-.btn-secondary:active {
-  transform: scale(0.98);
+  .btn-secondary:active {
+    transform: scale(0.98);
+  }
+
+  /* ── Range slider — track fill via gradient, not accent-color, since
+     accent-color's fill/thumb rendering is inconsistent on some Chromium
+     forks (e.g. Opera GX ignores it and falls back to a bare native input). */
+  .slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .slider::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(
+      to right,
+      var(--color-teal-400) var(--slider-progress, 0%),
+      var(--color-surface-3) var(--slider-progress, 0%)
+    );
+  }
+
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    margin-top: -6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--color-teal-400);
+    border: 3px solid var(--color-surface-0);
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.3);
+    cursor: pointer;
+    transition: transform 0.15s ease-out;
+  }
+
+  .slider:hover::-webkit-slider-thumb {
+    transform: scale(1.1);
+  }
+
+  .slider::-moz-range-track {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--color-surface-3);
+  }
+
+  .slider::-moz-range-progress {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--color-teal-400);
+  }
+
+  .slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--color-teal-400);
+    border: 3px solid var(--color-surface-0);
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.3);
+    cursor: pointer;
+    transition: transform 0.15s ease-out;
+  }
+
+  .slider:hover::-moz-range-thumb {
+    transform: scale(1.1);
+  }
+
+  .slider:focus-visible {
+    outline: none;
+  }
+
+  .slider:focus-visible::-webkit-slider-thumb {
+    outline: 2px solid var(--color-teal-400);
+    outline-offset: 2px;
+  }
+
+  .slider:focus-visible::-moz-range-thumb {
+    outline: 2px solid var(--color-teal-400);
+    outline-offset: 2px;
+  }
 }
 
 /* ── Input system ── */

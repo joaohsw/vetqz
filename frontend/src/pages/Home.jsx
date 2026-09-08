@@ -2,15 +2,13 @@
  * Home — orchestrates upload, study setup, question session, and review.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ArrowRight,
   BarChart3,
   FileText,
   ListTree,
   MessageSquare,
-  Mic,
-  PenLine,
   RotateCcw,
   Send,
   Upload,
@@ -77,7 +75,6 @@ export default function Home({ language }) {
   // Answer and result
   const [studentAnswer, setStudentAnswer] = useState('');
   const [audioBlob, setAudioBlob] = useState(null);
-  const [answerMode, setAnswerMode] = useState('audio');
   const [result, setResult] = useState(null);
 
   // UI state
@@ -85,6 +82,12 @@ export default function Home({ language }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [error, setError] = useState(null);
+
+  // Every step transition (e.g. submitting an answer) should land at the top,
+  // not wherever the user had scrolled to on the previous step.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [step]);
 
   const progressSteps = [
     { key: STEPS.UPLOAD, label: copy.home.steps.upload, icon: Upload },
@@ -106,7 +109,6 @@ export default function Home({ language }) {
     setSourceExcerpt('');
     setStudentAnswer('');
     setAudioBlob(null);
-    setAnswerMode('audio');
     setResult(null);
   };
 
@@ -206,7 +208,7 @@ export default function Home({ language }) {
         question,
         referenceAnswer,
         studentAnswer: studentAnswer.trim(),
-        audioBlob: answerMode === 'audio' ? audioBlob : null,
+        audioBlob,
         documentId,
         chunkIndex,
         sourceExcerpt,
@@ -253,13 +255,6 @@ export default function Home({ language }) {
     setSessionResults([]);
     setError(null);
     setStep(STEPS.UPLOAD);
-  };
-
-  const handleAnswerModeChange = (mode) => {
-    if (mode === answerMode) return;
-    setAnswerMode(mode);
-    setStudentAnswer('');
-    setAudioBlob(null);
   };
 
   const handleRetryQuestion = () => {
@@ -388,81 +383,28 @@ export default function Home({ language }) {
             </p>
           )}
 
-          <div className="flex gap-2">
+          <div className="space-y-4">
+            <AudioRecorder
+              onRecordingComplete={setAudioBlob}
+              onRecordingReset={() => {
+                setAudioBlob(null);
+                setStudentAnswer('');
+              }}
+              transcriptValue={studentAnswer}
+              onTranscriptChange={setStudentAnswer}
+              disabled={isEvaluating}
+              language={language}
+            />
             <button
-              id="mode-audio-btn"
+              id="submit-audio-answer-btn"
               type="button"
-              onClick={() => handleAnswerModeChange('audio')}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-500 transition-all duration-200 flex items-center justify-center gap-2 ${
-                answerMode === 'audio'
-                  ? 'bg-teal-500/15 text-teal-400 border border-teal-500/30'
-                  : 'bg-surface-1 text-text-3 border border-border-subtle hover:text-text-2'
-              }`}
+              onClick={handleSubmitAnswer}
+              disabled={!studentAnswer.trim() || isEvaluating}
+              className="btn-primary w-full"
             >
-              <Mic className="w-3.5 h-3.5" />
-              {copy.home.answerByVoice}
-            </button>
-            <button
-              id="mode-text-btn"
-              type="button"
-              onClick={() => handleAnswerModeChange('text')}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-500 transition-all duration-200 flex items-center justify-center gap-2 ${
-                answerMode === 'text'
-                  ? 'bg-teal-500/15 text-teal-400 border border-teal-500/30'
-                  : 'bg-surface-1 text-text-3 border border-border-subtle hover:text-text-2'
-              }`}
-            >
-              <PenLine className="w-3.5 h-3.5" />
-              {copy.home.answerByText}
+              {isEvaluating ? <><span className="spinner" />{copy.home.evaluating}</> : <>{copy.home.submitVoiceAnswer}<Send className="w-4 h-4" /></>}
             </button>
           </div>
-
-          {answerMode === 'text' && (
-            <div className="card p-6 space-y-4">
-              <textarea
-                id="student-answer-input"
-                value={studentAnswer}
-                onChange={(event) => setStudentAnswer(event.target.value)}
-                placeholder={copy.home.textPlaceholder}
-                rows={5}
-                className="input-field"
-              />
-              <button
-                id="submit-text-answer-btn"
-                type="button"
-                onClick={handleSubmitAnswer}
-                disabled={!studentAnswer.trim() || isEvaluating}
-                className="btn-primary w-full"
-              >
-                {isEvaluating ? <><span className="spinner" />{copy.home.evaluating}</> : <>{copy.home.submitAnswer}<Send className="w-4 h-4" /></>}
-              </button>
-            </div>
-          )}
-
-          {answerMode === 'audio' && (
-            <div className="space-y-4">
-              <AudioRecorder
-                onRecordingComplete={setAudioBlob}
-                onRecordingReset={() => {
-                  setAudioBlob(null);
-                  setStudentAnswer('');
-                }}
-                transcriptValue={studentAnswer}
-                onTranscriptChange={setStudentAnswer}
-                disabled={isEvaluating}
-                language={language}
-              />
-              <button
-                id="submit-audio-answer-btn"
-                type="button"
-                onClick={handleSubmitAnswer}
-                disabled={!audioBlob || !studentAnswer.trim() || isEvaluating}
-                className="btn-primary w-full"
-              >
-                {isEvaluating ? <><span className="spinner" />{copy.home.evaluating}</> : <>{copy.home.submitVoiceAnswer}<Send className="w-4 h-4" /></>}
-              </button>
-            </div>
-          )}
         </div>
       )}
 

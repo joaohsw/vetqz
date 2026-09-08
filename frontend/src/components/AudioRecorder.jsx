@@ -5,10 +5,52 @@
  * No emoji, proper icon-driven states, quiet motion.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Mic, Pause, Play, Square, RotateCcw, AlertCircle, FileText, X } from 'lucide-react';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { getTranslations } from '../i18n';
+
+/** Formats seconds as mm:ss for the playback bar, tolerating NaN/Infinity before metadata loads. */
+function formatPlaybackTime(seconds) {
+  if (!Number.isFinite(seconds)) return '00:00';
+  const total = Math.floor(seconds);
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+
+/** Color variants so each recording action reads as a distinct, legible control. */
+const CONTROL_VARIANTS = {
+  danger: 'bg-danger text-white hover:brightness-110',
+  gold: 'bg-gold-500/15 text-gold-400 border border-gold-500/30 hover:bg-gold-500/25',
+  teal: 'bg-teal-500/15 text-teal-400 border border-teal-500/30 hover:bg-teal-500/25',
+  dangerOutline: 'bg-danger-muted/15 text-danger border border-danger/30 hover:bg-danger-muted/25',
+  disabled: 'bg-surface-3 text-text-3 cursor-not-allowed',
+};
+
+/** Icon-in-circle button, color-coded per action — no icon-only "mystery box" controls. */
+function ControlButton({ id, icon: Icon, iconClassName = '', label, onClick, variant, size = 'md', disabled = false, pulse = false }) {
+  const circleSize = size === 'lg' ? 'w-14 h-14' : 'w-11 h-11';
+  const iconSize = size === 'lg' ? 'w-6 h-6' : 'w-5 h-5';
+
+  return (
+    <button
+      id={id}
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className={`
+        ${circleSize} rounded-full flex items-center justify-center
+        transition-all duration-200
+        ${disabled ? '' : 'hover:scale-105 active:scale-95'}
+        ${pulse ? 'recording-indicator' : ''}
+        ${CONTROL_VARIANTS[disabled ? 'disabled' : variant]}
+      `}
+    >
+      <Icon className={`${iconSize} ${iconClassName}`} />
+    </button>
+  );
+}
 
 export default function AudioRecorder({
   onRecordingComplete,
@@ -23,6 +65,7 @@ export default function AudioRecorder({
     status,
     audioBlob,
     audioUrl,
+    duration,
     formattedDuration,
     error,
     transcript,
@@ -38,6 +81,15 @@ export default function AudioRecorder({
   } = useAudioRecorder(language);
 
   const [warningDismissed, setWarningDismissed] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackTime, setPlaybackTime] = useState(0);
+  const [playbackDuration, setPlaybackDuration] = useState(0);
+  const audioElementRef = useRef(null);
+  const latestDurationRef = useRef(duration);
+
+  useEffect(() => {
+    latestDurationRef.current = duration;
+  }, [duration]);
 
   const browserWarningMessage = !isSpeechRecognitionSupported
     ? copy.audio.unsupported
@@ -59,9 +111,35 @@ export default function AudioRecorder({
     onTranscriptChange?.(transcript);
   }, [transcript, onTranscriptChange]);
 
+  useEffect(() => {
+    setIsPlaying(false);
+    setPlaybackTime(0);
+    // Seed with the recorder's own tracked length — Chrome reports Infinity for
+    // MediaRecorder blob URLs' duration metadata until a seek past the end occurs.
+    setPlaybackDuration(latestDurationRef.current);
+  }, [audioUrl]);
+
   const handleReset = () => {
     resetRecording();
     onRecordingReset?.();
+  };
+
+  const togglePlayback = () => {
+    const audioElement = audioElementRef.current;
+    if (!audioElement) return;
+    if (audioElement.paused) {
+      // play() rejects if blocked/interrupted (e.g. autoplay policy) — catch to avoid an unhandled rejection.
+      audioElement.play()?.catch(() => {});
+    } else {
+      audioElement.pause();
+    }
+  };
+
+  const handleSeek = (event) => {
+    const audioElement = audioElementRef.current;
+    const nextTime = Number(event.target.value);
+    if (audioElement) audioElement.currentTime = nextTime;
+    setPlaybackTime(nextTime);
   };
 
   return (
@@ -104,100 +182,130 @@ export default function AudioRecorder({
       </div>
 
       {/* Controls */}
-      <div className="flex items-center justify-center gap-3">
+      <div className="flex items-center justify-center gap-5">
         {/* Idle — no recording */}
         {status === 'idle' && !audioBlob && (
-          <button
+          <ControlButton
             id="audio-start-btn"
+            icon={Mic}
+            label={copy.audio.start}
             onClick={startRecording}
             disabled={disabled}
-            aria-label={copy.audio.start}
-            className={`
-              w-14 h-14 rounded-full flex items-center justify-center
-              transition-all duration-200
-              ${disabled
-                ? 'bg-surface-3 text-text-3 cursor-not-allowed'
-                : 'bg-danger text-white hover:scale-105 active:scale-95'
-              }
-            `}
-          >
-            <Mic className="w-6 h-6" />
-          </button>
+            variant="danger"
+            size="lg"
+          />
         )}
 
         {/* Recording */}
         {status === 'recording' && (
           <>
-            <button
+            <ControlButton
               id="audio-pause-btn"
+              icon={Pause}
+              label={copy.audio.pause}
               onClick={pauseRecording}
-              className="btn-secondary rounded-full w-10 h-10 p-0"
-              aria-label={copy.audio.pause}
-            >
-              <Pause className="w-4 h-4" />
-            </button>
+              variant="gold"
+            />
 
-            <div className="recording-indicator">
-              <button
-                id="audio-stop-btn"
-                onClick={stopRecording}
-                className="w-14 h-14 rounded-full bg-danger text-white flex items-center justify-center hover:scale-105 transition-transform"
-                aria-label={copy.audio.stop}
-              >
-                <Square className="w-5 h-5 fill-current" />
-              </button>
-            </div>
+            <ControlButton
+              id="audio-stop-btn"
+              icon={Square}
+              iconClassName="fill-current"
+              label={copy.audio.stop}
+              onClick={stopRecording}
+              variant="danger"
+              size="lg"
+              pulse
+            />
           </>
         )}
 
         {/* Paused */}
         {status === 'paused' && (
           <>
-            <button
+            <ControlButton
               id="audio-resume-btn"
-              onClick={resumeRecording}
-              className="btn-secondary rounded-full w-10 h-10 p-0"
-              aria-label={copy.audio.resume}
-            >
-              <Play className="w-4 h-4 text-teal-400" />
-            </button>
+              icon={Play}
+              label={copy.audio.resume}
+              onClick={() => resumeRecording(transcriptValue)}
+              variant="teal"
+            />
 
-            <button
+            <ControlButton
               id="audio-stop-paused-btn"
+              icon={Square}
+              iconClassName="fill-current"
+              label={copy.audio.stop}
               onClick={stopRecording}
-              className="w-14 h-14 rounded-full bg-danger text-white flex items-center justify-center hover:scale-105 transition-transform"
-              aria-label={copy.audio.stop}
-            >
-              <Square className="w-5 h-5 fill-current" />
-            </button>
+              variant="danger"
+              size="lg"
+            />
           </>
         )}
 
         {/* Completed */}
         {status === 'idle' && audioBlob && (
-          <button
+          <ControlButton
             id="audio-reset-btn"
+            icon={RotateCcw}
+            label={copy.audio.discard}
             onClick={handleReset}
-            className="btn-secondary rounded-full w-10 h-10 p-0"
-            title={copy.audio.discard}
-            aria-label={copy.audio.discard}
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
+            variant="dangerOutline"
+          />
         )}
       </div>
 
-      {/* Playback */}
+      {/* Playback — custom bar synced to timeupdate; native controls' progress
+          glitched when combined with the dark-mode invert filter. */}
       {audioUrl && status === 'idle' && (
-        <div className="mt-5 p-3 rounded-lg bg-surface-0">
+        <div className="mt-5 p-3 rounded-lg bg-surface-0 flex items-center gap-3">
           <audio
+            ref={audioElementRef}
             id="audio-preview"
             src={audioUrl}
-            controls
-            className="w-full h-8"
-            aria-label={copy.audio.preview}
-            style={{ filter: 'invert(0.85) hue-rotate(180deg) contrast(0.85) saturate(0.5)' }}
+            className="hidden"
+            onTimeUpdate={(event) => setPlaybackTime(event.currentTarget.currentTime)}
+            onLoadedMetadata={(event) => {
+              const metadataDuration = event.currentTarget.duration;
+              if (Number.isFinite(metadataDuration) && metadataDuration > 0) {
+                setPlaybackDuration(metadataDuration);
+              }
+            }}
+            onDurationChange={(event) => {
+              const metadataDuration = event.currentTarget.duration;
+              if (Number.isFinite(metadataDuration) && metadataDuration > 0) {
+                setPlaybackDuration(metadataDuration);
+              }
+            }}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onEnded={() => setIsPlaying(false)}
           />
+          <button
+            type="button"
+            id="audio-preview-toggle"
+            onClick={togglePlayback}
+            aria-label={isPlaying ? copy.audio.pausePreview : copy.audio.playPreview}
+            title={isPlaying ? copy.audio.pausePreview : copy.audio.playPreview}
+            className="w-9 h-9 rounded-full bg-teal-500/15 text-teal-400 border border-teal-500/30 hover:bg-teal-500/25 flex items-center justify-center shrink-0 transition-colors"
+          >
+            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+          </button>
+          <input
+            type="range"
+            id="audio-preview-seek"
+            min={0}
+            max={playbackDuration || 0}
+            step={0.01}
+            value={playbackTime}
+            onChange={handleSeek}
+            aria-label={copy.audio.preview}
+            className="slider flex-1"
+            style={{ '--slider-progress': `${playbackDuration ? (playbackTime / playbackDuration) * 100 : 0}%` }}
+          />
+          <span className="text-xs text-text-3 tabular-nums shrink-0">
+            {formatPlaybackTime(playbackTime)} / {formatPlaybackTime(playbackDuration)}
+          </span>
         </div>
       )}
 
