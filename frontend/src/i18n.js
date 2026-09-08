@@ -30,23 +30,42 @@ export const translations = {
       title: 'Continue seus estudos',
       description:
         'Entre para praticar Anatomia Veterinária com perguntas e feedback gerados por IA.',
+      signUpTitle: 'Crie sua conta',
+      signUpDescription:
+        'Cadastre-se para começar a praticar Anatomia Veterinária no vetQz.',
       emailLabel: 'E-mail',
       passwordLabel: 'Senha',
+      passwordConfirmationLabel: 'Confirmar senha',
+      passwordHint: 'Use pelo menos 8 caracteres.',
       showPassword: 'Mostrar senha',
       hidePassword: 'Ocultar senha',
       signIn: 'Entrar',
       signingIn: 'Entrando...',
+      createAccount: 'Criar conta',
+      creatingAccount: 'Criando conta...',
+      noAccount: 'Ainda não tem uma conta?',
+      goToSignUp: 'Cadastre-se',
+      haveAccount: 'Já possui uma conta?',
+      goToSignIn: 'Entrar',
       or: 'ou',
       continueAsGuest: 'Continuar como convidado',
       enteringAsGuest: 'Entrando como convidado...',
       guestNotice:
         'A sessão de convidado é temporária e pode ser perdida ao sair, limpar os dados do navegador ou trocar de dispositivo.',
       restoringSession: 'Restaurando sua sessão...',
+      success: {
+        confirmationSent:
+          'Verifique seu e-mail para confirmar o cadastro. Depois, você poderá entrar.',
+      },
       errors: {
-        requiredFields: 'Preencha o e-mail e a senha.',
+        requiredFields: 'Preencha todos os campos.',
         invalidEmail: 'Digite um endereço de e-mail válido.',
         invalidCredentials: 'E-mail ou senha incorretos.',
         emailNotConfirmed: 'Confirme seu e-mail antes de entrar.',
+        weakPassword: 'A senha deve ter pelo menos 8 caracteres e atender aos requisitos de segurança.',
+        passwordMismatch: 'As senhas não coincidem.',
+        registrationUnavailable:
+          'Não foi possível concluir o cadastro. Revise os dados ou tente novamente mais tarde.',
         rateLimit: 'Muitas tentativas. Aguarde um pouco e tente novamente.',
         network: 'Não foi possível conectar. Verifique sua internet e tente novamente.',
         configuration:
@@ -240,23 +259,43 @@ export const translations = {
       title: 'Continúa tus estudios',
       description:
         'Ingresa para practicar Anatomía Veterinaria con preguntas y retroalimentación generadas por IA.',
+      signUpTitle: 'Crea tu cuenta',
+      signUpDescription:
+        'Regístrate para comenzar a practicar Anatomía Veterinaria en vetQz.',
       emailLabel: 'Correo electrónico',
       passwordLabel: 'Contraseña',
+      passwordConfirmationLabel: 'Confirmar contraseña',
+      passwordHint: 'Usa al menos 8 caracteres.',
       showPassword: 'Mostrar contraseña',
       hidePassword: 'Ocultar contraseña',
       signIn: 'Ingresar',
       signingIn: 'Ingresando...',
+      createAccount: 'Crear cuenta',
+      creatingAccount: 'Creando cuenta...',
+      noAccount: '¿Aún no tienes una cuenta?',
+      goToSignUp: 'Regístrate',
+      haveAccount: '¿Ya tienes una cuenta?',
+      goToSignIn: 'Ingresar',
       or: 'o',
       continueAsGuest: 'Continuar como invitado',
       enteringAsGuest: 'Entrando como invitado...',
       guestNotice:
         'La sesión de invitado es temporal y puede perderse al salir, borrar los datos del navegador o cambiar de dispositivo.',
       restoringSession: 'Restaurando tu sesión...',
+      success: {
+        confirmationSent:
+          'Revisa tu correo para confirmar el registro. Después podrás ingresar.',
+      },
       errors: {
-        requiredFields: 'Ingresa tu correo electrónico y contraseña.',
+        requiredFields: 'Completa todos los campos.',
         invalidEmail: 'Ingresa un correo electrónico válido.',
         invalidCredentials: 'El correo electrónico o la contraseña son incorrectos.',
         emailNotConfirmed: 'Confirma tu correo electrónico antes de ingresar.',
+        weakPassword:
+          'La contraseña debe tener al menos 8 caracteres y cumplir los requisitos de seguridad.',
+        passwordMismatch: 'Las contraseñas no coinciden.',
+        registrationUnavailable:
+          'No fue posible completar el registro. Revisa los datos o inténtalo más tarde.',
         rateLimit: 'Demasiados intentos. Espera un momento e inténtalo de nuevo.',
         network: 'No fue posible conectar. Revisa tu conexión e inténtalo de nuevo.',
         configuration:

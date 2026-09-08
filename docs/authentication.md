@@ -2,6 +2,7 @@
 
 O frontend usa Supabase Auth para manter dois tipos de sessão:
 
+- novos usuários criam uma conta com e-mail e senha;
 - usuários permanentes entram com e-mail e senha;
 - convidados entram como usuários anônimos do Supabase.
 
@@ -9,10 +10,13 @@ Uma sessão anônima possui `user.id` e access token próprios, mas não pode se
 
 ## Configuração no Supabase
 
-1. Em **Authentication > Providers**, mantenha o provedor de e-mail habilitado.
-2. Em **Authentication > Providers > Anonymous Sign-Ins**, habilite entradas anônimas.
-3. Configure CAPTCHA ou Cloudflare Turnstile para o fluxo anônimo e revise os rate limits do projeto antes de disponibilizá-lo publicamente.
-4. Confirme que `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` estão definidos no ambiente do frontend. Nunca use a service role key no frontend.
+1. Em **Authentication > Providers**, mantenha o provedor de e-mail e a criação de novos usuários habilitados.
+2. Defina se o projeto exigirá confirmação de e-mail. Quando habilitada, o usuário recebe uma mensagem e só entra depois de confirmar o cadastro.
+3. Em **Authentication > URL Configuration**, configure a Site URL de produção e adicione `http://localhost:5173/**` às Redirect URLs para desenvolvimento.
+4. Configure SMTP próprio antes da produção. O serviço de e-mail padrão do Supabase é indicado apenas para testes e possui limites baixos.
+5. Em **Authentication > Providers > Anonymous Sign-Ins**, habilite entradas anônimas.
+6. Configure CAPTCHA ou Cloudflare Turnstile para cadastro e acesso anônimo, e revise os rate limits antes de disponibilizar o sistema publicamente.
+7. Confirme que `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` estão definidos no ambiente do frontend. Nunca use a service role key no frontend.
 
 O cliente Supabase gerencia a persistência da sessão. Tema e idioma continuam em chaves próprias no `localStorage` e não são removidos no logout.
 

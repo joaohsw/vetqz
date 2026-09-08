@@ -63,6 +63,19 @@ export default function AuthProvider({ children }) {
     return data;
   }, []);
 
+  const signUp = useCallback(async ({ email, password }) => {
+    assertSupabaseConfigured();
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/`,
+      },
+    });
+    if (error) throw error;
+    return data;
+  }, []);
+
   const signOut = useCallback(async () => {
     assertSupabaseConfigured();
     const { error } = await supabase.auth.signOut({ scope: 'local' });
@@ -78,10 +91,11 @@ export default function AuthProvider({ children }) {
       isAnonymous: Boolean(user?.is_anonymous),
       isLoading,
       signIn,
+      signUp,
       signInAsGuest,
       signOut,
     };
-  }, [isLoading, session, signIn, signInAsGuest, signOut]);
+  }, [isLoading, session, signIn, signInAsGuest, signOut, signUp]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

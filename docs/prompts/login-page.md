@@ -57,7 +57,7 @@ A tela deve conter:
 
 Ao autenticar, a Home deve aparecer sem reload manual. Inclua na área autenticada do cabeçalho uma ação discreta de sair. Para convidados, identifique o estado com texto curto (por exemplo, "Convidado"), sem expor UUID. Ao sair, use `supabase.auth.signOut({ scope: 'local' })` e retorne ao Login.
 
-Não adicione OAuth, recuperação de senha ou cadastro nesta entrega. Não crie links ou botões sem comportamento. Esses fluxos podem ser uma tarefa posterior.
+Inclua autocadastro na mesma página, com alternância clara entre entrar e criar conta, confirmação de senha, mínimo de 8 caracteres e tratamento do fluxo de confirmação por e-mail. Use `supabase.auth.signUp()` e mantenha mensagens neutras que não facilitem enumeração de usuários. Não adicione OAuth ou recuperação de senha nesta entrega, nem crie links ou botões sem comportamento.
 
 ## Direção visual obrigatória
 
@@ -137,15 +137,17 @@ Considere a tarefa concluída somente quando:
 3. Email/senha corretos autenticam e abrem a Home.
 4. Erros de formulário e de autenticação são localizados, acessíveis e não técnicos.
 5. "Continuar como convidado" cria uma sessão anônima real e abre a Home.
-6. Loading impede cliques e requests duplicados.
-7. Logout local retorna ao Login e preserva idioma e tema.
-8. Trocar PT/ES atualiza imediatamente todo o Login.
-9. Tema claro/escuro funciona no Login sem cores fora do design system.
-10. A interface funciona a partir de 320 px, por teclado e com foco visível.
-11. O token atual é enviado ao FastAPI em todas as chamadas da API.
-12. `npm run lint` e `npm run build` passam sem novos warnings ou erros.
-13. Não há secrets, tokens, senhas ou UUIDs expostos na interface, código ou logs.
-14. A documentação lista os passos manuais do Supabase e a pendência de proteção do backend.
+6. O autocadastro valida e-mail, senha e confirmação e chama `signUp()` sem persistir a senha.
+7. Com confirmação de e-mail ativa, a interface orienta o usuário sem revelar se a conta já existe; sem confirmação, a sessão autenticada abre a Home.
+8. Loading impede cliques e requests duplicados.
+9. Logout local retorna ao Login e preserva idioma e tema.
+10. Trocar PT/ES atualiza imediatamente todo o Login.
+11. Tema claro/escuro funciona no Login sem cores fora do design system.
+12. A interface funciona a partir de 320 px, por teclado e com foco visível.
+13. O token atual é enviado ao FastAPI em todas as chamadas da API.
+14. `npm run lint` e `npm run build` passam sem novos warnings ou erros.
+15. Não há secrets, tokens, senhas ou UUIDs expostos na interface, código ou logs.
+16. A documentação lista os passos manuais do Supabase e a pendência de proteção do backend.
 
 ## Revisão final obrigatória
 

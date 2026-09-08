@@ -81,7 +81,7 @@ vetqz/
 
 ## Autenticação
 
-O frontend oferece entrada por e-mail/senha e uma sessão anônima para convidados usando Supabase Auth. Consulte [docs/authentication.md](docs/authentication.md) para configurar os providers e conhecer as limitações de segurança atuais do backend.
+O frontend oferece autocadastro, entrada por e-mail/senha e uma sessão anônima para convidados usando Supabase Auth. Consulte [docs/authentication.md](docs/authentication.md) para configurar os providers e conhecer as limitações de segurança atuais do backend.
 
 ## Licença
 
