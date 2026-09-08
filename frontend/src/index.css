@@ -269,6 +269,87 @@ button:disabled,
   .btn-secondary:active {
     transform: scale(0.98);
   }
+
+  /* ── Range slider — track fill via gradient, not accent-color, since
+     accent-color's fill/thumb rendering is inconsistent on some Chromium
+     forks (e.g. Opera GX ignores it and falls back to a bare native input). */
+  .slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .slider::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(
+      to right,
+      var(--color-teal-400) var(--slider-progress, 0%),
+      var(--color-surface-3) var(--slider-progress, 0%)
+    );
+  }
+
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    margin-top: -6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--color-teal-400);
+    border: 3px solid var(--color-surface-0);
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.3);
+    cursor: pointer;
+    transition: transform 0.15s ease-out;
+  }
+
+  .slider:hover::-webkit-slider-thumb {
+    transform: scale(1.1);
+  }
+
+  .slider::-moz-range-track {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--color-surface-3);
+  }
+
+  .slider::-moz-range-progress {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--color-teal-400);
+  }
+
+  .slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--color-teal-400);
+    border: 3px solid var(--color-surface-0);
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.3);
+    cursor: pointer;
+    transition: transform 0.15s ease-out;
+  }
+
+  .slider:hover::-moz-range-thumb {
+    transform: scale(1.1);
+  }
+
+  .slider:focus-visible {
+    outline: none;
+  }
+
+  .slider:focus-visible::-webkit-slider-thumb {
+    outline: 2px solid var(--color-teal-400);
+    outline-offset: 2px;
+  }
+
+  .slider:focus-visible::-moz-range-thumb {
+    outline: 2px solid var(--color-teal-400);
+    outline-offset: 2px;
+  }
 }
 
 /* ── Input system ── */

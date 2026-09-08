@@ -32,6 +32,10 @@ export default function StudySetup({
   const topicsWithExtraQuestion = canConfigureQuestions
     ? safeQuestionCount % selectedCount
     : 0;
+  const sliderRange = maxQuestions - minimumQuestions;
+  const sliderProgress = sliderRange > 0
+    ? ((safeQuestionCount - minimumQuestions) / sliderRange) * 100
+    : 100;
 
   const formatDistribution = () => {
     const base = questionsPerTopic === 1
@@ -130,7 +134,8 @@ export default function StudySetup({
               <div className="flex items-end justify-between gap-4">
                 <div>
                   <p className="text-2xl font-['Plus_Jakarta_Sans'] font-800 text-teal-400">
-                    {copy.studySetup.questionLabel.replace('{count}', safeQuestionCount)}
+                    {(safeQuestionCount === 1 ? copy.studySetup.questionLabelSingular : copy.studySetup.questionLabel)
+                      .replace('{count}', safeQuestionCount)}
                   </p>
                   <p className="text-xs text-text-3 mt-1">
                     {copy.studySetup.questionRange
@@ -148,7 +153,8 @@ export default function StudySetup({
                 max={maxQuestions}
                 value={safeQuestionCount}
                 onChange={(event) => onQuestionCountChange(Number(event.target.value))}
-                className="mt-5 w-full accent-teal-400"
+                className="slider mt-5 w-full"
+                style={{ '--slider-progress': `${sliderProgress}%` }}
               />
               <p className="text-xs text-text-3 mt-3">{copy.studySetup.coverageHelp}</p>
             </div>
