@@ -2,7 +2,7 @@
  * Home — orchestrates upload, study setup, question session, and review.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ArrowRight,
   BarChart3,
@@ -82,6 +82,12 @@ export default function Home({ language }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [error, setError] = useState(null);
+
+  // Every step transition (e.g. submitting an answer) should land at the top,
+  // not wherever the user had scrolled to on the previous step.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [step]);
 
   const progressSteps = [
     { key: STEPS.UPLOAD, label: copy.home.steps.upload, icon: Upload },

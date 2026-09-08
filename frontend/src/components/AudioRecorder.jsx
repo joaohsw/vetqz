@@ -128,7 +128,8 @@ export default function AudioRecorder({
     const audioElement = audioElementRef.current;
     if (!audioElement) return;
     if (audioElement.paused) {
-      audioElement.play();
+      // play() rejects if blocked/interrupted (e.g. autoplay policy) — catch to avoid an unhandled rejection.
+      audioElement.play()?.catch(() => {});
     } else {
       audioElement.pause();
     }
@@ -136,11 +137,9 @@ export default function AudioRecorder({
 
   const handleSeek = (event) => {
     const audioElement = audioElementRef.current;
-    if (!audioElement || !playbackDuration) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const ratio = Math.min(Math.max((event.clientX - rect.left) / rect.width, 0), 1);
-    audioElement.currentTime = ratio * playbackDuration;
-    setPlaybackTime(audioElement.currentTime);
+    const nextTime = Number(event.target.value);
+    if (audioElement) audioElement.currentTime = nextTime;
+    setPlaybackTime(nextTime);
   };
 
   return (
@@ -292,21 +291,18 @@ export default function AudioRecorder({
           >
             {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
           </button>
-          <div
-            role="slider"
-            tabIndex={0}
+          <input
+            type="range"
+            id="audio-preview-seek"
+            min={0}
+            max={playbackDuration || 0}
+            step={0.01}
+            value={playbackTime}
+            onChange={handleSeek}
             aria-label={copy.audio.preview}
-            aria-valuemin={0}
-            aria-valuemax={playbackDuration || 0}
-            aria-valuenow={playbackTime}
-            onClick={handleSeek}
-            className="flex-1 h-2 rounded-full bg-surface-2 cursor-pointer relative"
-          >
-            <div
-              className="absolute inset-y-0 left-0 rounded-full bg-teal-400"
-              style={{ width: `${playbackDuration ? (playbackTime / playbackDuration) * 100 : 0}%` }}
-            />
-          </div>
+            className="slider flex-1"
+            style={{ '--slider-progress': `${playbackDuration ? (playbackTime / playbackDuration) * 100 : 0}%` }}
+          />
           <span className="text-xs text-text-3 tabular-nums shrink-0">
             {formatPlaybackTime(playbackTime)} / {formatPlaybackTime(playbackDuration)}
           </span>

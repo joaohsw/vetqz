@@ -34,7 +34,8 @@ function Collapsible({ summary, summaryClassName = '', defaultOpen = true, class
         style={{ gridTemplateRows: open ? '1fr' : '0fr' }}
       >
         <div className="overflow-hidden">
-          <div className="pt-4">{children}</div>
+          {/* inert removes collapsed content from tab order/AT, not just visual clipping */}
+          <div className="pt-4" inert={!open}>{children}</div>
         </div>
       </div>
     </div>
