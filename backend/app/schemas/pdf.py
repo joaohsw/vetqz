@@ -28,4 +28,4 @@ class UploadPDFResponse(BaseModel):
     document_id: str = Field(..., description="UUID do documento no Supabase")
     filename: str = Field(..., description="Nome original do arquivo")
     num_pages: int = Field(..., description="Número de páginas do PDF")
-    chunks: list[DocumentChunk] = Field(..., description="Trechos extraídos, com a página de origem")
+    num_chunks: int = Field(..., description="Número de trechos extraídos do PDF")

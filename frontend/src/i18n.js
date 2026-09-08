@@ -56,7 +56,7 @@ export const translations = {
     pdfUpload: {
       dropActive: 'Solte o arquivo aqui',
       dropIdle: 'Arraste um PDF ou clique para selecionar',
-      fileRequirements: 'Apenas PDF, até 15 MB',
+      fileRequirements: 'Apenas PDF, até 4 MB',
       processing: 'Processando...',
       submit: 'Enviar e processar',
       clearFile: 'Remover arquivo selecionado',
@@ -232,7 +232,7 @@ export const translations = {
     pdfUpload: {
       dropActive: 'Suelta el archivo aquí',
       dropIdle: 'Arrastra un PDF o haz clic para seleccionarlo',
-      fileRequirements: 'Solo PDF, hasta 15 MB',
+      fileRequirements: 'Solo PDF, hasta 4 MB',
       processing: 'Procesando...',
       submit: 'Subir y procesar',
       clearFile: 'Eliminar archivo seleccionado',

@@ -69,7 +69,8 @@ vetqz/
 │   │   ├── schemas/   # Modelos Pydantic
 │   │   ├── services/  # Lógica de negócio
 │   │   └── routers/   # Endpoints
-│   └── main.py
+│   ├── main.py
+│   └── index.py       # Entrypoint da Vercel
 └── frontend/          # React + Vite
     └── src/
         ├── components/

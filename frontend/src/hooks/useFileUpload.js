@@ -8,7 +8,7 @@
 import { useState, useCallback } from 'react';
 import { formatMessage, getTranslations } from '../i18n';
 
-const MAX_PDF_SIZE_MB = 15;
+const MAX_PDF_SIZE_MB = 4;
 const MAX_PDF_SIZE_BYTES = MAX_PDF_SIZE_MB * 1024 * 1024;
 const ALLOWED_TYPES = ['application/pdf'];
 

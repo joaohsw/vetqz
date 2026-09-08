@@ -153,7 +153,7 @@ export default function Home({ language }) {
       const analysis = await analyzeTopics(upload.document_id, language);
       setDocumentId(upload.document_id);
       setDocumentName(upload.filename);
-      setTotalChunks(upload.chunks.length);
+      setTotalChunks(upload.num_chunks);
       setTopics(analysis.topics);
       const allTopicIds = analysis.topics.map((topic) => topic.id);
       setSelectedTopicIds(allTopicIds);

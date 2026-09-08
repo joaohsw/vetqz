@@ -37,13 +37,18 @@ class Settings(BaseSettings):
     allowed_origins: str = "http://localhost:5173"
 
     # Limites de upload
-    max_pdf_size_mb: int = 15
-    max_audio_size_mb: int = 10
+    # Mantém o multipart abaixo do limite de 4,5 MB das Vercel Functions.
+    max_pdf_size_mb: int = 4
+    max_audio_size_mb: int = 4
 
     @property
     def allowed_origins_list(self) -> list[str]:
         """Converte a string de origens em lista."""
-        return [origin.strip() for origin in self.allowed_origins.split(",")]
+        return [
+            origin.strip().rstrip("/")
+            for origin in self.allowed_origins.split(",")
+            if origin.strip()
+        ]
 
     @property
     def max_pdf_size_bytes(self) -> int:

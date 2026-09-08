@@ -7,7 +7,7 @@
 
 import { DEFAULT_LANGUAGE, formatMessage, getTranslations } from '../i18n';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 
 async function throwApiError(response, language) {
   const copy = getTranslations(language);
@@ -21,7 +21,7 @@ async function throwApiError(response, language) {
 /**
  * Upload de PDF para o backend.
  * @param {File} file - Arquivo PDF selecionado pelo usuário.
- * @returns {Promise<Object>} - { document_id, filename, num_pages, chunks[] }
+ * @returns {Promise<Object>} - { document_id, filename, num_pages, num_chunks }
  */
 export async function uploadPdf(file, language = DEFAULT_LANGUAGE) {
   const formData = new FormData();

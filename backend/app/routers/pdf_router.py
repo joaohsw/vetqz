@@ -115,5 +115,5 @@ async def upload_pdf_endpoint(
         document_id=document["id"],
         filename=document["filename"],
         num_pages=num_pages,
-        chunks=chunks,
+        num_chunks=len(chunks),
     )
