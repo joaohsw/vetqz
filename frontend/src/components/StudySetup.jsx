@@ -160,7 +160,9 @@ export default function StudySetup({
             </div>
           ) : (
             <p className="rounded-lg border border-gold-400/30 bg-gold-400/5 p-3 text-sm text-gold-400">
-              {copy.studySetup.topicLimit.replace('{max}', maxQuestions)}
+              {selectedCount === 0
+                ? copy.studySetup.noTopicsSelected
+                : copy.studySetup.topicLimit.replace('{max}', maxQuestions)}
             </p>
           )}
         </fieldset>
