@@ -10,6 +10,41 @@ import { Mic, Pause, Play, Square, RotateCcw, AlertCircle, FileText, X } from 'l
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { getTranslations } from '../i18n';
 
+/** Color variants so each recording action reads as a distinct, legible control. */
+const CONTROL_VARIANTS = {
+  danger: 'bg-danger text-white hover:brightness-110',
+  gold: 'bg-gold-500/15 text-gold-400 border border-gold-500/30 hover:bg-gold-500/25',
+  teal: 'bg-teal-500/15 text-teal-400 border border-teal-500/30 hover:bg-teal-500/25',
+  dangerOutline: 'bg-danger-muted/15 text-danger border border-danger/30 hover:bg-danger-muted/25',
+  disabled: 'bg-surface-3 text-text-3 cursor-not-allowed',
+};
+
+/** Icon-in-circle button, color-coded per action — no icon-only "mystery box" controls. */
+function ControlButton({ id, icon: Icon, iconClassName = '', label, onClick, variant, size = 'md', disabled = false, pulse = false }) {
+  const circleSize = size === 'lg' ? 'w-14 h-14' : 'w-11 h-11';
+  const iconSize = size === 'lg' ? 'w-6 h-6' : 'w-5 h-5';
+
+  return (
+    <button
+      id={id}
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className={`
+        ${circleSize} rounded-full flex items-center justify-center
+        transition-all duration-200
+        ${disabled ? '' : 'hover:scale-105 active:scale-95'}
+        ${pulse ? 'recording-indicator' : ''}
+        ${CONTROL_VARIANTS[disabled ? 'disabled' : variant]}
+      `}
+    >
+      <Icon className={`${iconSize} ${iconClassName}`} />
+    </button>
+  );
+}
+
 export default function AudioRecorder({
   onRecordingComplete,
   onRecordingReset,
@@ -104,86 +139,76 @@ export default function AudioRecorder({
       </div>
 
       {/* Controls */}
-      <div className="flex items-center justify-center gap-3">
+      <div className="flex items-center justify-center gap-5">
         {/* Idle — no recording */}
         {status === 'idle' && !audioBlob && (
-          <button
+          <ControlButton
             id="audio-start-btn"
+            icon={Mic}
+            label={copy.audio.start}
             onClick={startRecording}
             disabled={disabled}
-            aria-label={copy.audio.start}
-            className={`
-              w-14 h-14 rounded-full flex items-center justify-center
-              transition-all duration-200
-              ${disabled
-                ? 'bg-surface-3 text-text-3 cursor-not-allowed'
-                : 'bg-danger text-white hover:scale-105 active:scale-95'
-              }
-            `}
-          >
-            <Mic className="w-6 h-6" />
-          </button>
+            variant="danger"
+            size="lg"
+          />
         )}
 
         {/* Recording */}
         {status === 'recording' && (
           <>
-            <button
+            <ControlButton
               id="audio-pause-btn"
+              icon={Pause}
+              label={copy.audio.pause}
               onClick={pauseRecording}
-              className="btn-secondary rounded-full w-10 h-10 p-0"
-              aria-label={copy.audio.pause}
-            >
-              <Pause className="w-4 h-4" />
-            </button>
+              variant="gold"
+            />
 
-            <div className="recording-indicator">
-              <button
-                id="audio-stop-btn"
-                onClick={stopRecording}
-                className="w-14 h-14 rounded-full bg-danger text-white flex items-center justify-center hover:scale-105 transition-transform"
-                aria-label={copy.audio.stop}
-              >
-                <Square className="w-5 h-5 fill-current" />
-              </button>
-            </div>
+            <ControlButton
+              id="audio-stop-btn"
+              icon={Square}
+              iconClassName="fill-current"
+              label={copy.audio.stop}
+              onClick={stopRecording}
+              variant="danger"
+              size="lg"
+              pulse
+            />
           </>
         )}
 
         {/* Paused */}
         {status === 'paused' && (
           <>
-            <button
+            <ControlButton
               id="audio-resume-btn"
+              icon={Play}
+              label={copy.audio.resume}
               onClick={resumeRecording}
-              className="btn-secondary rounded-full w-10 h-10 p-0"
-              aria-label={copy.audio.resume}
-            >
-              <Play className="w-4 h-4 text-teal-400" />
-            </button>
+              variant="teal"
+            />
 
-            <button
+            <ControlButton
               id="audio-stop-paused-btn"
+              icon={Square}
+              iconClassName="fill-current"
+              label={copy.audio.stop}
               onClick={stopRecording}
-              className="w-14 h-14 rounded-full bg-danger text-white flex items-center justify-center hover:scale-105 transition-transform"
-              aria-label={copy.audio.stop}
-            >
-              <Square className="w-5 h-5 fill-current" />
-            </button>
+              variant="danger"
+              size="lg"
+            />
           </>
         )}
 
         {/* Completed */}
         {status === 'idle' && audioBlob && (
-          <button
+          <ControlButton
             id="audio-reset-btn"
+            icon={RotateCcw}
+            label={copy.audio.discard}
             onClick={handleReset}
-            className="btn-secondary rounded-full w-10 h-10 p-0"
-            title={copy.audio.discard}
-            aria-label={copy.audio.discard}
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
+            variant="dangerOutline"
+          />
         )}
       </div>
 

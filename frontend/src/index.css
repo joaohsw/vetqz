@@ -205,65 +205,70 @@ button:disabled,
   cursor: not-allowed;
 }
 
-/* ── Button system ── */
+/* ── Button system ──
+   Wrapped in @layer components so utility classes (e.g. w-10 h-10 p-0
+   rounded-full) composed alongside these in JSX can still override them —
+   unlayered CSS otherwise always wins over Tailwind's layered utilities. */
 
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: var(--color-surface-0);
-  background: var(--color-teal-500);
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s ease-out, transform 0.1s ease-out;
-  text-wrap: nowrap;
-}
+@layer components {
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--color-surface-0);
+    background: var(--color-teal-500);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s ease-out, transform 0.1s ease-out;
+    text-wrap: nowrap;
+  }
 
-.btn-primary:hover {
-  background: var(--color-teal-400);
-}
+  .btn-primary:hover {
+    background: var(--color-teal-400);
+  }
 
-.btn-primary:active {
-  transform: scale(0.98);
-}
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
 
-.btn-primary:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  transform: none;
-}
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+  }
 
-.btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: var(--color-text-2);
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s ease-out, border-color 0.2s ease-out, color 0.2s ease-out;
-}
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--color-text-2);
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s ease-out, border-color 0.2s ease-out, color 0.2s ease-out;
+  }
 
-.btn-secondary:hover {
-  background: var(--color-surface-3);
-  border-color: var(--color-border-default);
-  color: var(--color-text-1);
-}
+  .btn-secondary:hover {
+    background: var(--color-surface-3);
+    border-color: var(--color-border-default);
+    color: var(--color-text-1);
+  }
 
-.btn-secondary:active {
-  transform: scale(0.98);
+  .btn-secondary:active {
+    transform: scale(0.98);
+  }
 }
 
 /* ── Input system ── */
