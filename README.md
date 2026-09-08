@@ -11,55 +11,6 @@
 | Database | Supabase (PostgreSQL) |
 | IA | Google Gemini 3.5 Flash-Lite |
 
-## Pré-requisitos
-
-- **Node.js** 18+ e **npm** 9+
-- **Python** 3.11+
-- Conta no **Supabase** (projeto criado)
-- **Google AI Studio** API Key (Gemini)
-
-## Setup
-
-### 1. Clone o repositório
-
-```bash
-git clone https://github.com/seu-usuario/vetqz.git
-cd vetqz
-```
-
-### 2. Backend
-
-```bash
-cd backend
-python -m venv venv
-
-# Windows
-venv\Scripts\activate
-# Linux/Mac
-source venv/bin/activate
-
-pip install -r requirements.txt
-cp .env.example .env
-# Edite o .env com suas credenciais
-
-uvicorn main:app --reload
-```
-
-O backend estará em `http://localhost:8000`. Docs interativos em `/docs`.
-
-### 3. Frontend
-
-```bash
-cd frontend
-npm install
-cp .env.example .env
-# Edite o .env com suas credenciais
-
-npm run dev
-```
-
-O frontend estará em `http://localhost:5173`.
-
 ## Estrutura
 
 ```
@@ -78,10 +29,6 @@ vetqz/
         ├── lib/
         └── pages/
 ```
-
-## Autenticação
-
-O frontend oferece autocadastro, entrada por e-mail/senha e uma sessão anônima para convidados usando Supabase Auth. Consulte [docs/authentication.md](docs/authentication.md) para configurar os providers e conhecer as limitações de segurança atuais do backend.
 
 ## Licença
 
