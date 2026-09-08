@@ -228,7 +228,7 @@ export default function AudioRecorder({
               id="audio-resume-btn"
               icon={Play}
               label={copy.audio.resume}
-              onClick={resumeRecording}
+              onClick={() => resumeRecording(transcriptValue)}
               variant="teal"
             />
 
