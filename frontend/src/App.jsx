@@ -3,8 +3,10 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useAuth } from './auth/useAuth';
 import Layout from './components/Layout';
 import Home from './pages/Home';
+import Login from './pages/Login';
 import { DEFAULT_LANGUAGE, getTranslations } from './i18n';
 
 const LANGUAGE_STORAGE_KEY = 'vetqz-language';
@@ -29,6 +31,7 @@ function getInitialTheme() {
 export default function App() {
   const [language, setLanguage] = useState(getInitialLanguage);
   const [theme, setTheme] = useState(getInitialTheme);
+  const { session, user, isAnonymous, isLoading, signOut } = useAuth();
 
   useEffect(() => {
     const copy = getTranslations(language);
@@ -51,8 +54,25 @@ export default function App() {
       onLanguageChange={setLanguage}
       theme={theme}
       onThemeChange={setTheme}
+      session={session}
+      user={user}
+      isAnonymous={isAnonymous}
+      onSignOut={signOut}
     >
-      <Home language={language} />
+      {isLoading ? (
+        <div
+          className="max-w-md mx-auto py-20 flex flex-col items-center gap-3 text-sm text-text-3"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="spinner text-teal-400" aria-hidden="true" />
+          <span>{getTranslations(language).login.restoringSession}</span>
+        </div>
+      ) : session ? (
+        <Home language={language} />
+      ) : (
+        <Login language={language} />
+      )}
     </Layout>
   );
 }
