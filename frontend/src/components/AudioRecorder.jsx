@@ -5,10 +5,17 @@
  * No emoji, proper icon-driven states, quiet motion.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Mic, Pause, Play, Square, RotateCcw, AlertCircle, FileText, X } from 'lucide-react';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { getTranslations } from '../i18n';
+
+/** Formats seconds as mm:ss for the playback bar, tolerating NaN/Infinity before metadata loads. */
+function formatPlaybackTime(seconds) {
+  if (!Number.isFinite(seconds)) return '00:00';
+  const total = Math.floor(seconds);
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
 
 /** Color variants so each recording action reads as a distinct, legible control. */
 const CONTROL_VARIANTS = {
@@ -58,6 +65,7 @@ export default function AudioRecorder({
     status,
     audioBlob,
     audioUrl,
+    duration,
     formattedDuration,
     error,
     transcript,
@@ -73,6 +81,15 @@ export default function AudioRecorder({
   } = useAudioRecorder(language);
 
   const [warningDismissed, setWarningDismissed] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackTime, setPlaybackTime] = useState(0);
+  const [playbackDuration, setPlaybackDuration] = useState(0);
+  const audioElementRef = useRef(null);
+  const latestDurationRef = useRef(duration);
+
+  useEffect(() => {
+    latestDurationRef.current = duration;
+  }, [duration]);
 
   const browserWarningMessage = !isSpeechRecognitionSupported
     ? copy.audio.unsupported
@@ -94,9 +111,36 @@ export default function AudioRecorder({
     onTranscriptChange?.(transcript);
   }, [transcript, onTranscriptChange]);
 
+  useEffect(() => {
+    setIsPlaying(false);
+    setPlaybackTime(0);
+    // Seed with the recorder's own tracked length — Chrome reports Infinity for
+    // MediaRecorder blob URLs' duration metadata until a seek past the end occurs.
+    setPlaybackDuration(latestDurationRef.current);
+  }, [audioUrl]);
+
   const handleReset = () => {
     resetRecording();
     onRecordingReset?.();
+  };
+
+  const togglePlayback = () => {
+    const audioElement = audioElementRef.current;
+    if (!audioElement) return;
+    if (audioElement.paused) {
+      audioElement.play();
+    } else {
+      audioElement.pause();
+    }
+  };
+
+  const handleSeek = (event) => {
+    const audioElement = audioElementRef.current;
+    if (!audioElement || !playbackDuration) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(Math.max((event.clientX - rect.left) / rect.width, 0), 1);
+    audioElement.currentTime = ratio * playbackDuration;
+    setPlaybackTime(audioElement.currentTime);
   };
 
   return (
@@ -212,17 +256,60 @@ export default function AudioRecorder({
         )}
       </div>
 
-      {/* Playback */}
+      {/* Playback — custom bar synced to timeupdate; native controls' progress
+          glitched when combined with the dark-mode invert filter. */}
       {audioUrl && status === 'idle' && (
-        <div className="mt-5 p-3 rounded-lg bg-surface-0">
+        <div className="mt-5 p-3 rounded-lg bg-surface-0 flex items-center gap-3">
           <audio
+            ref={audioElementRef}
             id="audio-preview"
             src={audioUrl}
-            controls
-            className="w-full h-8"
-            aria-label={copy.audio.preview}
-            style={{ filter: 'invert(0.85) hue-rotate(180deg) contrast(0.85) saturate(0.5)' }}
+            className="hidden"
+            onTimeUpdate={(event) => setPlaybackTime(event.currentTarget.currentTime)}
+            onLoadedMetadata={(event) => {
+              const metadataDuration = event.currentTarget.duration;
+              if (Number.isFinite(metadataDuration) && metadataDuration > 0) {
+                setPlaybackDuration(metadataDuration);
+              }
+            }}
+            onDurationChange={(event) => {
+              const metadataDuration = event.currentTarget.duration;
+              if (Number.isFinite(metadataDuration) && metadataDuration > 0) {
+                setPlaybackDuration(metadataDuration);
+              }
+            }}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onEnded={() => setIsPlaying(false)}
           />
+          <button
+            type="button"
+            id="audio-preview-toggle"
+            onClick={togglePlayback}
+            aria-label={isPlaying ? copy.audio.pausePreview : copy.audio.playPreview}
+            title={isPlaying ? copy.audio.pausePreview : copy.audio.playPreview}
+            className="w-9 h-9 rounded-full bg-teal-500/15 text-teal-400 border border-teal-500/30 hover:bg-teal-500/25 flex items-center justify-center shrink-0 transition-colors"
+          >
+            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+          </button>
+          <div
+            role="slider"
+            tabIndex={0}
+            aria-label={copy.audio.preview}
+            aria-valuemin={0}
+            aria-valuemax={playbackDuration || 0}
+            aria-valuenow={playbackTime}
+            onClick={handleSeek}
+            className="flex-1 h-2 rounded-full bg-surface-2 cursor-pointer relative"
+          >
+            <div
+              className="absolute inset-y-0 left-0 rounded-full bg-teal-400"
+              style={{ width: `${playbackDuration ? (playbackTime / playbackDuration) * 100 : 0}%` }}
+            />
+          </div>
+          <span className="text-xs text-text-3 tabular-nums shrink-0">
+            {formatPlaybackTime(playbackTime)} / {formatPlaybackTime(playbackDuration)}
+          </span>
         </div>
       )}
 
