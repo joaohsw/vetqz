@@ -23,9 +23,54 @@ export const translations = {
       signOut: 'Sair',
       signingOut: 'Saindo...',
       signOutError: 'Não foi possível sair. Tente novamente.',
+      accountMenu: 'Minha conta',
+      openAccountMenu: 'Abrir menu da conta',
+      closeAccountMenu: 'Fechar menu da conta',
       footer: 'Anatomia Veterinária com IA',
     },
+    landing: {
+      eyebrow: 'Aprendizado ativo com IA',
+      title: 'Seu material de estudo vira',
+      titleHighlight: 'uma conversa.',
+      description:
+        'O vetQz transforma seus PDFs de Anatomia Veterinária em perguntas orais e feedback personalizado para você aprender de verdade — não apenas memorizar.',
+      primaryAction: 'Começar a estudar',
+      secondaryAction: 'Já tenho uma conta',
+      reassurance: ['Teste como convidado', 'Feedback baseado no seu PDF'],
+      howItWorksEyebrow: 'Como funciona',
+      howItWorksTitle: 'Do PDF à prática em três passos',
+      howItWorksDescription:
+        'Uma sessão simples e focada, criada a partir do conteúdo que você já está estudando.',
+      steps: {
+        upload: {
+          title: 'Envie seu material',
+          description: 'Faça upload de um PDF e escolha os assuntos que quer praticar.',
+        },
+        answer: {
+          title: 'Responda com sua voz',
+          description: 'A IA cria perguntas e você explica a resposta como faria em uma prova oral.',
+        },
+        improve: {
+          title: 'Entenda e melhore',
+          description: 'Receba uma nota, feedback claro e a resposta ideal baseada no seu material.',
+        },
+      },
+      preview: {
+        ariaLabel: 'Exemplo de uma sessão de estudo no vetQz',
+        file: 'Anatomia comparada.pdf',
+        topic: 'Sistema locomotor',
+        ready: 'Material pronto',
+        questionLabel: 'Pergunta 03',
+        question: 'Qual é a principal função do músculo supraespinhal no membro torácico?',
+        recording: 'Resposta por voz · 00:18',
+        feedbackTitle: 'Ótima resposta',
+        feedback: 'Conceito correto e boa relação com a estabilidade articular.',
+      },
+      ctaTitle: 'Pronto para estudar de forma mais ativa?',
+      ctaDescription: 'Use seu próprio material e pratique no seu ritmo.',
+    },
     login: {
+      backToHome: 'Voltar ao início',
       eyebrow: 'Seu espaço de estudo',
       title: 'Continue seus estudos',
       description:
@@ -256,9 +301,54 @@ export const translations = {
       signOut: 'Salir',
       signingOut: 'Saliendo...',
       signOutError: 'No fue posible cerrar la sesión. Inténtalo de nuevo.',
+      accountMenu: 'Mi cuenta',
+      openAccountMenu: 'Abrir menú de la cuenta',
+      closeAccountMenu: 'Cerrar menú de la cuenta',
       footer: 'Anatomía Veterinaria con IA',
     },
+    landing: {
+      eyebrow: 'Aprendizaje activo con IA',
+      title: 'Tu material de estudio se convierte en',
+      titleHighlight: 'una conversación.',
+      description:
+        'vetQz transforma tus PDF de Anatomía Veterinaria en preguntas orales y retroalimentación personalizada para que aprendas de verdad, no solo memorices.',
+      primaryAction: 'Comenzar a estudiar',
+      secondaryAction: 'Ya tengo una cuenta',
+      reassurance: ['Prueba como invitado', 'Feedback basado en tu PDF'],
+      howItWorksEyebrow: 'Cómo funciona',
+      howItWorksTitle: 'Del PDF a la práctica en tres pasos',
+      howItWorksDescription:
+        'Una sesión simple y enfocada, creada a partir del contenido que ya estás estudiando.',
+      steps: {
+        upload: {
+          title: 'Sube tu material',
+          description: 'Carga un PDF y elige los temas que quieres practicar.',
+        },
+        answer: {
+          title: 'Responde con tu voz',
+          description: 'La IA crea preguntas y tú explicas la respuesta como en un examen oral.',
+        },
+        improve: {
+          title: 'Comprende y mejora',
+          description: 'Recibe una nota, feedback claro y la respuesta ideal basada en tu material.',
+        },
+      },
+      preview: {
+        ariaLabel: 'Ejemplo de una sesión de estudio en vetQz',
+        file: 'Anatomía comparada.pdf',
+        topic: 'Sistema locomotor',
+        ready: 'Material listo',
+        questionLabel: 'Pregunta 03',
+        question: '¿Cuál es la función principal del músculo supraespinoso en el miembro torácico?',
+        recording: 'Respuesta por voz · 00:18',
+        feedbackTitle: 'Muy buena respuesta',
+        feedback: 'Concepto correcto y buena relación con la estabilidad articular.',
+      },
+      ctaTitle: '¿Listo para estudiar de forma más activa?',
+      ctaDescription: 'Usa tu propio material y practica a tu ritmo.',
+    },
     login: {
+      backToHome: 'Volver al inicio',
       eyebrow: 'Tu espacio de estudio',
       title: 'Continúa tus estudios',
       description:

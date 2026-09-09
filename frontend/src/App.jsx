@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from './auth/useAuth';
 import Layout from './components/Layout';
 import Home from './pages/Home';
+import Landing from './pages/Landing';
 import Login from './pages/Login';
 import { DEFAULT_LANGUAGE, getTranslations } from './i18n';
 
@@ -31,7 +32,16 @@ function getInitialTheme() {
 export default function App() {
   const [language, setLanguage] = useState(getInitialLanguage);
   const [theme, setTheme] = useState(getInitialTheme);
-  const { session, user, isAnonymous, isLoading, signOut } = useAuth();
+  const [publicPage, setPublicPage] = useState('landing');
+  const [authMode, setAuthMode] = useState('signIn');
+  const [studyProgressKey, setStudyProgressKey] = useState('upload');
+  const { session, user, isAnonymous, signOut } = useAuth();
+
+  const openAuth = (mode) => {
+    setAuthMode(mode);
+    setPublicPage('auth');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     const copy = getTranslations(language);
@@ -58,20 +68,23 @@ export default function App() {
       user={user}
       isAnonymous={isAnonymous}
       onSignOut={signOut}
+      studyProgressKey={studyProgressKey}
     >
-      {isLoading ? (
-        <div
-          className="max-w-md mx-auto py-20 flex flex-col items-center gap-3 text-sm text-text-3"
-          role="status"
-          aria-live="polite"
-        >
-          <span className="spinner text-teal-400" aria-hidden="true" />
-          <span>{getTranslations(language).login.restoringSession}</span>
-        </div>
-      ) : session ? (
-        <Home language={language} />
+      {session ? (
+        <Home language={language} onProgressChange={setStudyProgressKey} />
+      ) : publicPage === 'landing' ? (
+        <Landing
+          language={language}
+          onCreateAccount={() => openAuth('signUp')}
+          onSignIn={() => openAuth('signIn')}
+        />
       ) : (
-        <Login language={language} />
+        <Login
+          key={authMode}
+          language={language}
+          initialMode={authMode}
+          onBack={() => setPublicPage('landing')}
+        />
       )}
     </Layout>
   );
