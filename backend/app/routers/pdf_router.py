@@ -17,7 +17,7 @@ from app.schemas.language import DEFAULT_LANGUAGE, SupportedLanguage
 from app.schemas.pdf import UploadPDFResponse
 from app.services.pdf_service import chunk_pages, extract_text_by_page
 from app.services.supabase_client import get_supabase_client
-from app.services.storage_service import upload_pdf
+from app.services.storage_service import upload_pdf, delete_pdf
 
 router = APIRouter()
 
@@ -117,3 +117,59 @@ async def upload_pdf_endpoint(
         num_pages=num_pages,
         num_chunks=len(chunks),
     )
+
+
+@router.delete(
+    "/documents/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove um documento e seu PDF do storage",
+    description="Deleta o registro do documento e remove o arquivo do Supabase Storage.",
+)
+async def delete_document_endpoint(
+    document_id: str,
+    language: SupportedLanguage = DEFAULT_LANGUAGE,
+):
+    """
+    Pipeline de deleção:
+    1. Busca o documento pelo ID para obter o storage_path.
+    2. Remove o arquivo do Supabase Storage.
+    3. Remove o registro da tabela 'documents'.
+    """
+    supabase = get_supabase_client()
+
+    # --- BUSCA DO DOCUMENTO ---
+    result = (
+        supabase.table("documents")
+        .select("id, storage_path")
+        .eq("id", document_id)
+        .execute()
+    )
+
+    if not result.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=api_message(language, "document_not_found", document_id=document_id),
+        )
+
+    document = result.data[0]
+    storage_path = document.get("storage_path", "")
+
+    # --- REMOÇÃO DO STORAGE ---
+    if storage_path:
+        try:
+            delete_pdf(storage_path)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=api_message(language, "document_storage_delete_failed", error=str(e)),
+            )
+
+    # --- REMOÇÃO DO BANCO ---
+    try:
+        supabase.table("documents").delete().eq("id", document_id).execute()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=api_message(language, "document_delete_failed", error=str(e)),
+        )
+

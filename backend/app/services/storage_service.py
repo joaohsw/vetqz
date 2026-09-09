@@ -38,6 +38,21 @@ def upload_pdf(file_bytes: bytes, original_filename: str) -> str:
     return f"materials/{storage_path}"
 
 
+def delete_pdf(storage_path: str) -> None:
+    """
+    Remove um PDF do bucket 'materials' no Supabase Storage.
+
+    Args:
+        storage_path: Path completo armazenado no banco (ex: "materials/abc123.pdf").
+    """
+    supabase = get_supabase_client()
+
+    # storage_path é salvo como "materials/<uuid>.pdf"; o bucket já é "materials",
+    # então precisamos apenas do nome do arquivo dentro do bucket.
+    file_name = storage_path.removeprefix("materials/")
+    supabase.storage.from_("materials").remove([file_name])
+
+
 def upload_audio(file_bytes: bytes, content_type: str) -> str:
     """
     Faz upload do áudio ao bucket 'audio' no Supabase Storage.

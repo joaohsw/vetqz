@@ -152,3 +152,18 @@ export async function evaluateAnswer({
 
   return response.json();
 }
+
+/**
+ * Remove um documento e seu PDF do storage.
+ * @param {string} documentId - UUID do documento a remover.
+ * @param {string} language - Idioma para mensagens de erro.
+ */
+export async function deleteDocument(documentId, language = DEFAULT_LANGUAGE) {
+  const response = await apiFetch(`/api/documents/${documentId}?language=${language}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, language);
+  }
+}

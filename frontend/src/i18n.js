@@ -298,6 +298,13 @@ export const translations = {
       unknownError: 'Erro desconhecido',
       requestError: 'Erro {status}',
     },
+    contentWarning: {
+      title: 'Conteúdo fora da área veterinária',
+      description:
+        'O PDF enviado não parece tratar de medicina veterinária ou anatomia animal. O vetQz foi projetado para esse tipo de conteúdo e os resultados podem não ser ideais com outros materiais.',
+      continueAnyway: 'Continuar mesmo assim',
+      uploadAnother: 'Enviar outro PDF',
+    },
   },
   'es-CL': {
     metadata: {
@@ -591,6 +598,13 @@ export const translations = {
     api: {
       unknownError: 'Error desconocido',
       requestError: 'Error {status}',
+    },
+    contentWarning: {
+      title: 'Contenido fuera del área veterinaria',
+      description:
+        'El PDF subido no parece tratar de medicina veterinaria o anatomía animal. vetQz fue diseñado para ese tipo de contenido y los resultados pueden no ser ideales con otros materiales.',
+      continueAnyway: 'Continuar de todas formas',
+      uploadAnother: 'Subir otro PDF',
     },
   },
 };

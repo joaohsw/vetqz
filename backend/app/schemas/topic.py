@@ -36,3 +36,8 @@ class AnalyzeTopicsResponse(BaseModel):
         min_length=1,
         description="Assuntos identificados, sem quantidade pré-definida",
     )
+    is_veterinary: bool = Field(
+        True,
+        description="Indica se o conteúdo do PDF trata de medicina veterinária ou áreas relacionadas",
+    )
+

@@ -114,6 +114,11 @@ REGRAS ESTRITAS:
 - Não invente conteúdo que não esteja no material.
 - Responda APENAS em JSON válido.
 
+CLASSIFICAÇÃO DE CONTEÚDO:
+- Avalie se o material trata de medicina veterinária, anatomia veterinária, ciências animais ou áreas diretamente relacionadas.
+- Defina "is_veterinary" como true se o conteúdo for dessa área, false se não for.
+- Mesmo que o material não seja veterinário, ainda assim construa o mapa de assuntos normalmente.
+
 IDIOMA OBRIGATÓRIO DA SAÍDA:
 - Escreva títulos e resumos exclusivamente em {language_name}.
 - Preserve nomenclatura anatômica latina oficial quando for tecnicamente apropriado.
@@ -123,6 +128,7 @@ TRECHOS INDEXADOS:
 
 Responda no seguinte formato JSON:
 {{
+  "is_veterinary": true,
   "topics": [
     {{
       "title": "Nome do assunto",
@@ -285,8 +291,12 @@ def _normalize_topics(raw_topics: object, total_chunks: int) -> list[dict]:
 async def analyze_topics(
     chunks: list[str],
     language: SupportedLanguage = DEFAULT_LANGUAGE,
-) -> list[dict]:
-    """Gera um mapa variável de assuntos, vinculado aos trechos do PDF."""
+) -> dict:
+    """Gera um mapa variável de assuntos, vinculado aos trechos do PDF.
+
+    Returns:
+        Dict com 'topics' (lista) e 'is_veterinary' (bool).
+    """
     indexed_chunks = "\n\n".join(
         f"--- TRECHO #{index} ---\n{chunk}"
         for index, chunk in enumerate(chunks)
@@ -301,16 +311,17 @@ async def analyze_topics(
         config=_topic_generation_config,
     )
     parsed = _parse_json_response(response.text)
+    is_veterinary = bool(parsed.get("is_veterinary", True))
     topics = _normalize_topics(parsed.get("topics"), len(chunks))
-    if topics:
-        return topics
+    if not topics:
+        topics = [{
+            "id": "topic-1",
+            "title": "Conteúdo geral da unidade",
+            "summary": "Prática abrangente com base em todos os trechos identificados no material.",
+            "chunk_indices": list(range(len(chunks))),
+        }]
 
-    return [{
-        "id": "topic-1",
-        "title": "Conteúdo geral da unidade",
-        "summary": "Prática abrangente com base em todos os trechos identificados no material.",
-        "chunk_indices": list(range(len(chunks))),
-    }]
+    return {"topics": topics, "is_veterinary": is_veterinary}
 
 
 async def evaluate_answer(

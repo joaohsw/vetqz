@@ -49,11 +49,14 @@ async def analyze_topics_endpoint(request: AnalyzeTopicsRequest):
         )
 
     try:
-        topics = await analyze_topics([chunk["text"] for chunk in chunks], request.language)
+        analysis = await analyze_topics([chunk["text"] for chunk in chunks], request.language)
     except Exception as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=api_message(request.language, "topic_analysis", error=str(error)),
         )
 
-    return AnalyzeTopicsResponse(topics=topics)
+    return AnalyzeTopicsResponse(
+        topics=analysis["topics"],
+        is_veterinary=analysis["is_veterinary"],
+    )
