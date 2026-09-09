@@ -23,6 +23,9 @@ export const translations = {
       signOut: 'Sair',
       signingOut: 'Saindo...',
       signOutError: 'Não foi possível sair. Tente novamente.',
+      accountMenu: 'Minha conta',
+      openAccountMenu: 'Abrir menu da conta',
+      closeAccountMenu: 'Fechar menu da conta',
       footer: 'Anatomia Veterinária com IA',
     },
     landing: {
@@ -298,6 +301,9 @@ export const translations = {
       signOut: 'Salir',
       signingOut: 'Saliendo...',
       signOutError: 'No fue posible cerrar la sesión. Inténtalo de nuevo.',
+      accountMenu: 'Mi cuenta',
+      openAccountMenu: 'Abrir menú de la cuenta',
+      closeAccountMenu: 'Cerrar menú de la cuenta',
       footer: 'Anatomía Veterinaria con IA',
     },
     landing: {

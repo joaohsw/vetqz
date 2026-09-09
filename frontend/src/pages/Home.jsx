@@ -46,7 +46,7 @@ function createQuestionPlan(selectedTopics, questionCount) {
   );
 }
 
-export default function Home({ language }) {
+export default function Home({ language, onProgressChange }) {
   const copy = getTranslations(language);
   const [step, setStep] = useState(STEPS.UPLOAD);
 
@@ -99,6 +99,10 @@ export default function Home({ language }) {
     ? STEPS.ANSWER
     : step;
   const currentProgressIndex = progressSteps.findIndex((item) => item.key === progressKey);
+
+  useEffect(() => {
+    onProgressChange?.(progressKey);
+  }, [onProgressChange, progressKey]);
 
   const resetQuestionState = () => {
     setActiveTopic(null);
@@ -282,7 +286,7 @@ export default function Home({ language }) {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <nav className="flex items-center gap-1" aria-label={copy.home.progress}>
+      <nav className="flex lg:hidden items-center gap-1" aria-label={copy.home.progress}>
         {progressSteps.map((item, index) => {
           const Icon = item.icon;
           const isActive = index === currentProgressIndex;

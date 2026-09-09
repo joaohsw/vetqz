@@ -34,6 +34,7 @@ export default function App() {
   const [theme, setTheme] = useState(getInitialTheme);
   const [publicPage, setPublicPage] = useState('landing');
   const [authMode, setAuthMode] = useState('signIn');
+  const [studyProgressKey, setStudyProgressKey] = useState('upload');
   const { session, user, isAnonymous, signOut } = useAuth();
 
   const openAuth = (mode) => {
@@ -67,9 +68,10 @@ export default function App() {
       user={user}
       isAnonymous={isAnonymous}
       onSignOut={signOut}
+      studyProgressKey={studyProgressKey}
     >
       {session ? (
-        <Home language={language} />
+        <Home language={language} onProgressChange={setStudyProgressKey} />
       ) : publicPage === 'landing' ? (
         <Landing
           language={language}
