@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertCircle, CircleCheck, Eye, EyeOff, LogIn, UserPlus, UserRound } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CircleCheck, Eye, EyeOff, LogIn, UserPlus, UserRound } from 'lucide-react';
 
 import { useAuth } from '../auth/useAuth';
 import { getTranslations } from '../i18n';
@@ -21,10 +21,10 @@ function getAuthErrorKey(error) {
   return 'unknown';
 }
 
-export default function Login({ language }) {
+export default function Login({ language, initialMode = 'signIn', onBack }) {
   const copy = getTranslations(language).login;
   const { signIn, signUp, signInAsGuest } = useAuth();
-  const [mode, setMode] = useState('signIn');
+  const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
@@ -112,6 +112,16 @@ export default function Login({ language }) {
       className="max-w-md mx-auto py-6 sm:py-12 animate-enter"
       aria-labelledby="login-title"
     >
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="mb-6 inline-flex items-center gap-2 text-sm font-600 text-text-3 transition-colors hover:text-text-1"
+        >
+          <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+          {copy.backToHome}
+        </button>
+      )}
       <div className="mb-6 text-center">
         <p className="text-xs font-600 uppercase tracking-[0.16em] text-teal-400">
           {copy.eyebrow}
