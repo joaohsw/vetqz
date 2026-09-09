@@ -78,8 +78,8 @@ export default function Layout({
       {/* Header */}
       <header className="border-b border-border-subtle">
         {session ? (
-          <div className="w-full px-4 sm:px-6 md:px-8 lg:px-12 py-3 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-            <div className="flex items-center gap-3 min-w-0">
+          <div className="w-full px-4 sm:px-6 md:px-8 lg:px-12 py-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <button
                 id="account-menu-btn"
                 type="button"
@@ -96,7 +96,7 @@ export default function Layout({
                 <UserRound className="w-5 h-5" aria-hidden="true" />
               </button>
               <span className="h-6 w-px bg-border-subtle shrink-0" aria-hidden="true" />
-              <Brand />
+              <Brand compactOnMobile />
             </div>
 
             <StudyProgress copy={copy} activeKey={studyProgressKey} />
@@ -151,13 +151,15 @@ export default function Layout({
   );
 }
 
-function Brand() {
+function Brand({ compactOnMobile = false }) {
   return (
     <div className="flex items-center justify-center gap-2.5">
       <div className="w-10 h-10 rounded-xl bg-teal-500 flex items-center justify-center shrink-0">
         <PawPrint className="w-5 h-5 text-surface-0" aria-hidden="true" />
       </div>
-      <span className="max-[359px]:hidden font-['Plus_Jakarta_Sans'] text-lg font-800 tracking-tight text-text-1">
+      <span
+        className={`${compactOnMobile ? 'max-[479px]:hidden' : 'max-[359px]:hidden'} font-['Plus_Jakarta_Sans'] text-lg font-800 tracking-tight text-text-1`}
+      >
         vetQz
       </span>
     </div>
