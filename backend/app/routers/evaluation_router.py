@@ -19,6 +19,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from app.config import settings
 from app.localization import api_message
 from app.schemas.evaluation import EvaluateAnswerResponse
+from app.schemas.difficulty import DEFAULT_DIFFICULTY, Difficulty
 from app.schemas.language import DEFAULT_LANGUAGE, SupportedLanguage
 from app.services.gemini_service import evaluate_answer
 from app.services.pdf_service import normalize_document_chunks, validate_source_excerpt
@@ -114,6 +115,7 @@ async def evaluate_answer_endpoint(
     reference_answer: str = Form(...),
     student_answer: str = Form(...),
     language: SupportedLanguage = Form(DEFAULT_LANGUAGE),
+    difficulty: Difficulty = Form(DEFAULT_DIFFICULTY),
     document_id: str | None = Form(None),
     chunk_index: int | None = Form(None),
     source_excerpt: str | None = Form(None),
@@ -147,6 +149,7 @@ async def evaluate_answer_endpoint(
             reference_answer=reference_answer,
             student_answer=student_answer,
             language=language,
+            difficulty=difficulty,
         )
     except Exception as e:
         raise HTTPException(

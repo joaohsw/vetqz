@@ -16,15 +16,17 @@ import {
 } from 'lucide-react';
 
 import AudioRecorder from '../components/AudioRecorder';
+import ContentWarningModal from '../components/ContentWarningModal';
 import PdfUpload from '../components/PdfUpload';
 import QuestionCard from '../components/QuestionCard';
 import ResultCard from '../components/ResultCard';
 import StudySetup from '../components/StudySetup';
-import { analyzeTopics, evaluateAnswer, generateQuestion, uploadPdf } from '../lib/api';
+import { analyzeTopics, deleteDocument, evaluateAnswer, generateQuestion, uploadPdf } from '../lib/api';
 import { getTranslations } from '../i18n';
 
 const STEPS = {
   UPLOAD: 'upload',
+  CONTENT_WARNING: 'content_warning',
   SETUP: 'setup',
   QUESTION: 'question',
   ANSWER: 'answer',
@@ -35,6 +37,12 @@ const STEPS = {
 const FEEDBACK_MODES = {
   IMMEDIATE: 'immediate',
   FINAL: 'final',
+};
+
+const DIFFICULTIES = {
+  EASY: 'easy',
+  MEDIUM: 'medium',
+  HARD: 'hard',
 };
 
 const MAX_SESSION_QUESTIONS = 20;
@@ -59,6 +67,7 @@ export default function Home({ language, onProgressChange }) {
 
   // Session preferences and progress
   const [questionCount, setQuestionCount] = useState(1);
+  const [difficulty, setDifficulty] = useState(DIFFICULTIES.MEDIUM);
   const [feedbackMode, setFeedbackMode] = useState(FEEDBACK_MODES.IMMEDIATE);
   const [questionPlan, setQuestionPlan] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -81,6 +90,7 @@ export default function Home({ language, onProgressChange }) {
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
+  const [isDeletingDocument, setIsDeletingDocument] = useState(false);
   const [error, setError] = useState(null);
 
   // Every step transition (e.g. submitting an answer) should land at the top,
@@ -97,7 +107,9 @@ export default function Home({ language, onProgressChange }) {
   ];
   const progressKey = [STEPS.QUESTION, STEPS.ANSWER, STEPS.RESULT].includes(step)
     ? STEPS.ANSWER
-    : step;
+    : step === STEPS.CONTENT_WARNING
+      ? STEPS.UPLOAD
+      : step;
   const currentProgressIndex = progressSteps.findIndex((item) => item.key === progressKey);
 
   useEffect(() => {
@@ -134,6 +146,7 @@ export default function Home({ language, onProgressChange }) {
       const data = await generateQuestion(documentId, {
         chunkIndices: topic.chunk_indices,
         topicTitle: topic.title,
+        difficulty,
         language,
       });
       setActiveTopic(topic);
@@ -164,12 +177,34 @@ export default function Home({ language, onProgressChange }) {
       const allTopicIds = analysis.topics.map((topic) => topic.id);
       setSelectedTopicIds(allTopicIds);
       setQuestionCount(Math.min(allTopicIds.length, MAX_SESSION_QUESTIONS));
-      setStep(STEPS.SETUP);
+
+      if (analysis.is_veterinary === false) {
+        setStep(STEPS.CONTENT_WARNING);
+      } else {
+        setStep(STEPS.SETUP);
+      }
     } catch (requestError) {
       setError(requestError.message);
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleContentWarningContinue = () => {
+    setStep(STEPS.SETUP);
+  };
+
+  const handleContentWarningUploadAnother = async () => {
+    if (!documentId) return;
+    setIsDeletingDocument(true);
+    try {
+      await deleteDocument(documentId, language);
+    } catch {
+      // Best effort — even if deletion fails, reset UI so user can try again
+    } finally {
+      setIsDeletingDocument(false);
+    }
+    handleReset();
   };
 
   const handleStartSession = async () => {
@@ -216,6 +251,7 @@ export default function Home({ language, onProgressChange }) {
         documentId,
         chunkIndex,
         sourceExcerpt,
+        difficulty,
         language,
       });
       const attempt = {
@@ -353,6 +389,15 @@ export default function Home({ language, onProgressChange }) {
         </section>
       )}
 
+      {step === STEPS.CONTENT_WARNING && (
+        <ContentWarningModal
+          onContinue={handleContentWarningContinue}
+          onUploadAnother={handleContentWarningUploadAnother}
+          isDeleting={isDeletingDocument}
+          language={language}
+        />
+      )}
+
       {step === STEPS.SETUP && (
         <StudySetup
           topics={topics}
@@ -361,6 +406,8 @@ export default function Home({ language, onProgressChange }) {
           questionCount={questionCount}
           onQuestionCountChange={setQuestionCount}
           maxQuestions={MAX_SESSION_QUESTIONS}
+          difficulty={difficulty}
+          onDifficultyChange={setDifficulty}
           feedbackMode={feedbackMode}
           onFeedbackModeChange={setFeedbackMode}
           onStart={handleStartSession}

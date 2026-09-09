@@ -4,6 +4,7 @@ Schemas Pydantic para geração de perguntas.
 
 from pydantic import BaseModel, Field
 
+from app.schemas.difficulty import DEFAULT_DIFFICULTY, Difficulty
 from app.schemas.language import DEFAULT_LANGUAGE, SupportedLanguage
 from app.schemas.pdf import SourceReference
 
@@ -28,6 +29,10 @@ class GenerateQuestionRequest(BaseModel):
         max_length=180,
         description="Assunto em foco, usado para manter a pergunta alinhada à sessão.",
     )
+    difficulty: Difficulty = Field(
+        DEFAULT_DIFFICULTY,
+        description="Dificuldade da pergunta: easy, medium ou hard.",
+    )
 
 
 class GenerateQuestionResponse(BaseModel):
@@ -36,5 +41,6 @@ class GenerateQuestionResponse(BaseModel):
     reference_answer: str = Field(..., description="Resposta de referência da IA")
     chunk_used: str = Field(..., description="Trecho do PDF usado como contexto")
     topic_title: str | None = Field(None, description="Assunto selecionado para a pergunta")
+    difficulty: Difficulty = Field(..., description="Dificuldade usada para gerar a pergunta")
     chunk_index: int = Field(..., ge=0, description="Índice do trecho usado no documento")
     source: SourceReference = Field(..., description="Fonte rastreável da pergunta")

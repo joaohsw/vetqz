@@ -185,6 +185,21 @@ export const translations = {
       coverageHelp: 'A primeira rodada cobre todos os assuntos. As perguntas extras são distribuídas de modo equilibrado.',
       topicLimit: 'Selecione no máximo {max} assuntos para garantir uma pergunta por assunto.',
       noTopicsSelected: 'Selecione pelo menos 1 assunto para ser possível formular perguntas.',
+      difficulty: 'Dificuldade das perguntas',
+      difficulties: {
+        easy: {
+          title: 'Fácil',
+          description: 'Conceitos centrais e perguntas mais diretas.',
+        },
+        medium: {
+          title: 'Médio',
+          description: 'Compreensão e relações entre conceitos.',
+        },
+        hard: {
+          title: 'Difícil',
+          description: 'Integração e raciocínio mais aprofundado.',
+        },
+      },
       feedbackTiming: 'Quando quer receber o feedback?',
       feedbackModes: {
         immediate: {
@@ -282,6 +297,13 @@ export const translations = {
     api: {
       unknownError: 'Erro desconhecido',
       requestError: 'Erro {status}',
+    },
+    contentWarning: {
+      title: 'Conteúdo fora da área veterinária',
+      description:
+        'O PDF enviado não parece tratar de medicina veterinária ou anatomia animal. O vetQz foi projetado para esse tipo de conteúdo e os resultados podem não ser ideais com outros materiais.',
+      continueAnyway: 'Continuar mesmo assim',
+      uploadAnother: 'Enviar outro PDF',
     },
   },
   'es-CL': {
@@ -464,6 +486,21 @@ export const translations = {
       coverageHelp: 'La primera ronda cubre todos los temas. Las preguntas adicionales se distribuyen de forma equilibrada.',
       topicLimit: 'Selecciona como máximo {max} temas para garantizar una pregunta por tema.',
       noTopicsSelected: 'Selecciona al menos 1 tema para poder formular preguntas.',
+      difficulty: 'Dificultad de las preguntas',
+      difficulties: {
+        easy: {
+          title: 'Fácil',
+          description: 'Conceptos centrales y preguntas más directas.',
+        },
+        medium: {
+          title: 'Medio',
+          description: 'Comprensión y relaciones entre conceptos.',
+        },
+        hard: {
+          title: 'Difícil',
+          description: 'Integración y razonamiento más profundo.',
+        },
+      },
       feedbackTiming: '¿Cuándo quieres recibir la retroalimentación?',
       feedbackModes: {
         immediate: {
@@ -561,6 +598,13 @@ export const translations = {
     api: {
       unknownError: 'Error desconocido',
       requestError: 'Error {status}',
+    },
+    contentWarning: {
+      title: 'Contenido fuera del área veterinaria',
+      description:
+        'El PDF subido no parece tratar de medicina veterinaria o anatomía animal. vetQz fue diseñado para ese tipo de contenido y los resultados pueden no ser ideales con otros materiales.',
+      continueAnyway: 'Continuar de todas formas',
+      uploadAnother: 'Subir otro PDF',
     },
   },
 };

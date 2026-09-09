@@ -115,6 +115,7 @@ async def generate_question_endpoint(request: GenerateQuestionRequest):
             selected_text,
             request.language,
             request.topic_title,
+            request.difficulty,
         )
     except Exception as e:
         raise HTTPException(
@@ -127,6 +128,7 @@ async def generate_question_endpoint(request: GenerateQuestionRequest):
         reference_answer=gemini_response.get("reference_answer", ""),
         chunk_used=selected_text,
         topic_title=request.topic_title,
+        difficulty=request.difficulty,
         chunk_index=selected_index,
         source={
             "excerpt": validate_source_excerpt(
