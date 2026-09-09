@@ -12,6 +12,8 @@ export default function StudySetup({
   questionCount,
   onQuestionCountChange,
   maxQuestions,
+  difficulty,
+  onDifficultyChange,
   feedbackMode,
   onFeedbackModeChange,
   onStart,
@@ -165,6 +167,33 @@ export default function StudySetup({
                 : copy.studySetup.topicLimit.replace('{max}', maxQuestions)}
             </p>
           )}
+        </fieldset>
+
+        <fieldset>
+          <legend className="text-xs font-600 text-text-2 mb-3">{copy.studySetup.difficulty}</legend>
+          <div className="grid sm:grid-cols-3 gap-2">
+            {['easy', 'medium', 'hard'].map((level) => (
+              <button
+                key={level}
+                id={`difficulty-${level}`}
+                type="button"
+                onClick={() => onDifficultyChange(level)}
+                aria-pressed={difficulty === level}
+                className={`text-left p-3 rounded-lg border transition-colors ${
+                  difficulty === level
+                    ? 'border-teal-500/40 bg-teal-500/15'
+                    : 'border-border-subtle bg-surface-1 hover:bg-surface-2'
+                }`}
+              >
+                <span className={`block text-sm font-600 ${difficulty === level ? 'text-teal-400' : 'text-text-2'}`}>
+                  {copy.studySetup.difficulties[level].title}
+                </span>
+                <span className="block text-xs text-text-3 mt-1 leading-relaxed">
+                  {copy.studySetup.difficulties[level].description}
+                </span>
+              </button>
+            ))}
+          </div>
         </fieldset>
 
         <fieldset>

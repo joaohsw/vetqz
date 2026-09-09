@@ -185,6 +185,21 @@ export const translations = {
       coverageHelp: 'A primeira rodada cobre todos os assuntos. As perguntas extras são distribuídas de modo equilibrado.',
       topicLimit: 'Selecione no máximo {max} assuntos para garantir uma pergunta por assunto.',
       noTopicsSelected: 'Selecione pelo menos 1 assunto para ser possível formular perguntas.',
+      difficulty: 'Dificuldade das perguntas',
+      difficulties: {
+        easy: {
+          title: 'Fácil',
+          description: 'Conceitos centrais e perguntas mais diretas.',
+        },
+        medium: {
+          title: 'Médio',
+          description: 'Compreensão e relações entre conceitos.',
+        },
+        hard: {
+          title: 'Difícil',
+          description: 'Integração e raciocínio mais aprofundado.',
+        },
+      },
       feedbackTiming: 'Quando quer receber o feedback?',
       feedbackModes: {
         immediate: {
@@ -464,6 +479,21 @@ export const translations = {
       coverageHelp: 'La primera ronda cubre todos los temas. Las preguntas adicionales se distribuyen de forma equilibrada.',
       topicLimit: 'Selecciona como máximo {max} temas para garantizar una pregunta por tema.',
       noTopicsSelected: 'Selecciona al menos 1 tema para poder formular preguntas.',
+      difficulty: 'Dificultad de las preguntas',
+      difficulties: {
+        easy: {
+          title: 'Fácil',
+          description: 'Conceptos centrales y preguntas más directas.',
+        },
+        medium: {
+          title: 'Medio',
+          description: 'Comprensión y relaciones entre conceptos.',
+        },
+        hard: {
+          title: 'Difícil',
+          description: 'Integración y razonamiento más profundo.',
+        },
+      },
       feedbackTiming: '¿Cuándo quieres recibir la retroalimentación?',
       feedbackModes: {
         immediate: {

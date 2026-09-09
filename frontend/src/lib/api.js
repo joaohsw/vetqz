@@ -83,9 +83,10 @@ export async function generateQuestion(documentId, {
   chunkIndex = null,
   chunkIndices = null,
   topicTitle = null,
+  difficulty = 'medium',
   language = DEFAULT_LANGUAGE,
 } = {}) {
-  const body = { document_id: documentId, language };
+  const body = { document_id: documentId, difficulty, language };
   if (chunkIndex !== null) body.chunk_index = chunkIndex;
   if (chunkIndices !== null) body.chunk_indices = chunkIndices;
   if (topicTitle) body.topic_title = topicTitle;
@@ -123,12 +124,14 @@ export async function evaluateAnswer({
   documentId = null,
   chunkIndex = null,
   sourceExcerpt = null,
+  difficulty = 'medium',
   language = DEFAULT_LANGUAGE,
 }) {
   const formData = new FormData();
   formData.append('question', question);
   formData.append('reference_answer', referenceAnswer);
   formData.append('student_answer', studentAnswer);
+  formData.append('difficulty', difficulty);
   formData.append('language', language);
   if (documentId) formData.append('document_id', documentId);
   if (Number.isInteger(chunkIndex)) formData.append('chunk_index', String(chunkIndex));

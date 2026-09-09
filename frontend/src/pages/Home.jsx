@@ -37,6 +37,12 @@ const FEEDBACK_MODES = {
   FINAL: 'final',
 };
 
+const DIFFICULTIES = {
+  EASY: 'easy',
+  MEDIUM: 'medium',
+  HARD: 'hard',
+};
+
 const MAX_SESSION_QUESTIONS = 20;
 
 function createQuestionPlan(selectedTopics, questionCount) {
@@ -59,6 +65,7 @@ export default function Home({ language, onProgressChange }) {
 
   // Session preferences and progress
   const [questionCount, setQuestionCount] = useState(1);
+  const [difficulty, setDifficulty] = useState(DIFFICULTIES.MEDIUM);
   const [feedbackMode, setFeedbackMode] = useState(FEEDBACK_MODES.IMMEDIATE);
   const [questionPlan, setQuestionPlan] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -134,6 +141,7 @@ export default function Home({ language, onProgressChange }) {
       const data = await generateQuestion(documentId, {
         chunkIndices: topic.chunk_indices,
         topicTitle: topic.title,
+        difficulty,
         language,
       });
       setActiveTopic(topic);
@@ -216,6 +224,7 @@ export default function Home({ language, onProgressChange }) {
         documentId,
         chunkIndex,
         sourceExcerpt,
+        difficulty,
         language,
       });
       const attempt = {
@@ -361,6 +370,8 @@ export default function Home({ language, onProgressChange }) {
           questionCount={questionCount}
           onQuestionCountChange={setQuestionCount}
           maxQuestions={MAX_SESSION_QUESTIONS}
+          difficulty={difficulty}
+          onDifficultyChange={setDifficulty}
           feedbackMode={feedbackMode}
           onFeedbackModeChange={setFeedbackMode}
           onStart={handleStartSession}

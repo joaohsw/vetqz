@@ -4,6 +4,7 @@ Schemas Pydantic para avaliação de respostas.
 
 from pydantic import BaseModel, Field
 
+from app.schemas.difficulty import DEFAULT_DIFFICULTY, Difficulty
 from app.schemas.language import DEFAULT_LANGUAGE, SupportedLanguage
 from app.schemas.pdf import SourceReference
 
@@ -16,6 +17,10 @@ class EvaluateAnswerRequest(BaseModel):
     language: SupportedLanguage = Field(
         DEFAULT_LANGUAGE,
         description="Idioma da avaliação: pt-BR ou es-CL",
+    )
+    difficulty: Difficulty = Field(
+        DEFAULT_DIFFICULTY,
+        description="Dificuldade da pergunta avaliada: easy, medium ou hard.",
     )
 
 
