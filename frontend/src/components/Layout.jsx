@@ -78,8 +78,8 @@ export default function Layout({
       {/* Header */}
       <header className="border-b border-border-subtle">
         {session ? (
-          <div className="w-full px-4 sm:px-6 md:px-8 lg:px-12 py-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="w-full px-4 sm:px-6 md:px-8 lg:px-12 py-3 grid grid-cols-[auto_1fr_auto] lg:grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
+            <div className="col-start-1 flex items-center gap-2 sm:gap-3 min-w-0">
               <button
                 id="account-menu-btn"
                 type="button"
@@ -107,7 +107,7 @@ export default function Layout({
               onLanguageChange={onLanguageChange}
               isLight={isLight}
               onThemeChange={onThemeChange}
-              className="justify-self-end"
+              className="col-start-3 justify-self-end"
             />
           </div>
         ) : (
@@ -176,7 +176,7 @@ function StudyProgress({ copy, activeKey }) {
   const activeIndex = steps.findIndex((step) => step.key === activeKey);
 
   return (
-    <nav className="hidden lg:flex items-center gap-1" aria-label={copy.home.progress}>
+    <nav className="hidden lg:flex col-start-2 items-center gap-1" aria-label={copy.home.progress}>
       {steps.map((step, index) => {
         const Icon = step.icon;
         const isActive = index === activeIndex;
