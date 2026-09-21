@@ -8,14 +8,16 @@ SEGURANÇA:
 """
 
 import json
+from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from app.config import settings
 from app.localization import api_message
 from app.schemas.language import DEFAULT_LANGUAGE, SupportedLanguage
 from app.schemas.pdf import UploadPDFResponse
 from app.services.pdf_service import chunk_pages, extract_text_by_page
+from app.services.auth_service import require_current_user
 from app.services.supabase_client import get_supabase_client
 from app.services.storage_service import upload_pdf, delete_pdf
 
@@ -35,6 +37,7 @@ ALLOWED_PDF_TYPES = {"application/pdf"}
 async def upload_pdf_endpoint(
     file: UploadFile = File(...),
     language: SupportedLanguage = Form(DEFAULT_LANGUAGE),
+    user_id: str = Depends(require_current_user),
 ):
     """
     Pipeline de upload:
@@ -81,6 +84,7 @@ async def upload_pdf_endpoint(
 
     # --- CHUNKING ---
     chunks = chunk_pages(page_texts)
+    expires_at = datetime.now(UTC) + timedelta(days=settings.material_retention_days)
 
     # --- UPLOAD AO STORAGE ---
     try:
@@ -101,11 +105,18 @@ async def upload_pdf_endpoint(
                 "num_pages": num_pages,
                 "chunks": json.dumps(chunks),  # JSONB
                 "storage_path": storage_path,
+                "user_id": user_id,
+                "expires_at": expires_at.isoformat(),
+                "original_size_bytes": len(file_bytes),
             })
             .execute()
         )
         document = result.data[0]
     except Exception as e:
+        try:
+            delete_pdf(storage_path)
+        except Exception:
+            pass
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=api_message(language, 'pdf_database', error=str(e)),
@@ -128,6 +139,7 @@ async def upload_pdf_endpoint(
 async def delete_document_endpoint(
     document_id: str,
     language: SupportedLanguage = DEFAULT_LANGUAGE,
+    user_id: str = Depends(require_current_user),
 ):
     """
     Pipeline de deleção:
@@ -142,6 +154,7 @@ async def delete_document_endpoint(
         supabase.table("documents")
         .select("id, storage_path")
         .eq("id", document_id)
+        .eq("user_id", user_id)
         .execute()
     )
 
@@ -166,7 +179,13 @@ async def delete_document_endpoint(
 
     # --- REMOÇÃO DO BANCO ---
     try:
-        supabase.table("documents").delete().eq("id", document_id).execute()
+        (
+            supabase.table("documents")
+            .delete()
+            .eq("id", document_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

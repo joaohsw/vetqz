@@ -30,6 +30,18 @@ vetqz/
         └── pages/
 ```
 
+## Retenção de materiais
+
+O vetQz mantém PDFs e gravações de áudio por sete dias. O histórico da sessão
+(pergunta, nota, feedback, resposta-modelo e fonte) continua disponível, sem
+reter o arquivo original. A limpeza automática é configurada em
+`backend/vercel.json` e requer a variável de ambiente `CRON_SECRET` na Vercel.
+
+Antes de publicar esta versão, execute a migration
+`supabase/migrations/20260921_hybrid_material_retention.sql` no SQL Editor do
+Supabase. Ela apenas adiciona campos e índices para propriedade do material e
+prazo de expiração; não edita nem remove registros existentes.
+
 ## Licença
 
 MIT

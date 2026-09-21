@@ -10,7 +10,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import evaluation_router, pdf_router, question_router, topic_router
+from app.routers import (
+    evaluation_router,
+    materials_router,
+    pdf_router,
+    question_router,
+    topic_router,
+)
 
 
 @asynccontextmanager
@@ -45,6 +51,7 @@ app.include_router(pdf_router.router, prefix="/api", tags=["PDF"])
 app.include_router(topic_router.router, prefix="/api", tags=["Study setup"])
 app.include_router(question_router.router, prefix="/api", tags=["Questions"])
 app.include_router(evaluation_router.router, prefix="/api", tags=["Evaluation"])
+app.include_router(materials_router.router, prefix="/api", tags=["Materials"])
 
 
 @app.get("/health")

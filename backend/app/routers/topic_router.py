@@ -2,12 +2,13 @@
 
 import json
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.localization import api_message
 from app.schemas.topic import AnalyzeTopicsRequest, AnalyzeTopicsResponse
 from app.services.gemini_service import analyze_topics
 from app.services.pdf_service import normalize_document_chunks
+from app.services.auth_service import require_current_user
 from app.services.supabase_client import get_supabase_client
 
 router = APIRouter()
@@ -19,13 +20,17 @@ router = APIRouter()
     summary="Identifica os assuntos de uma unidade",
     description="Monta um mapa variável de assuntos a partir dos trechos extraídos do PDF.",
 )
-async def analyze_topics_endpoint(request: AnalyzeTopicsRequest):
+async def analyze_topics_endpoint(
+    request: AnalyzeTopicsRequest,
+    user_id: str = Depends(require_current_user),
+):
     """Busca o documento e cria assuntos vinculados aos trechos que os fundamentam."""
     supabase = get_supabase_client()
     result = (
         supabase.table("documents")
         .select("id, chunks")
         .eq("id", request.document_id)
+        .eq("user_id", user_id)
         .execute()
     )
 

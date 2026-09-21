@@ -41,6 +41,13 @@ class Settings(BaseSettings):
     max_pdf_size_mb: int = 4
     max_audio_size_mb: int = 4
 
+    # Retenção temporária dos arquivos de estudo. O histórico pedagógico
+    # permanece no banco mesmo após a remoção do PDF/áudio.
+    material_retention_days: int = 7
+
+    # Segredo compartilhado com o Vercel Cron para a limpeza diária.
+    cron_secret: str | None = None
+
     @property
     def allowed_origins_list(self) -> list[str]:
         """Converte a string de origens em lista."""

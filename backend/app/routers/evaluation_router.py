@@ -13,8 +13,9 @@ SEGURANÇA:
 """
 
 import json
+from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from app.config import settings
 from app.localization import api_message
@@ -22,9 +23,10 @@ from app.schemas.evaluation import EvaluateAnswerResponse
 from app.schemas.difficulty import DEFAULT_DIFFICULTY, Difficulty
 from app.schemas.language import DEFAULT_LANGUAGE, SupportedLanguage
 from app.services.gemini_service import evaluate_answer
+from app.services.auth_service import require_current_user
 from app.services.pdf_service import normalize_document_chunks, validate_source_excerpt
 from app.services.supabase_client import get_supabase_client
-from app.services.storage_service import upload_audio
+from app.services.storage_service import delete_audio, upload_audio
 
 router = APIRouter()
 
@@ -74,6 +76,7 @@ def get_source_reference(
     document_id: str | None,
     chunk_index: int | None,
     source_excerpt: str | None,
+    user_id: str,
 ) -> dict | None:
     """Recupera a fonte diretamente do documento, sem confiar no cliente."""
     if not document_id or chunk_index is None or chunk_index < 0:
@@ -85,6 +88,7 @@ def get_source_reference(
             supabase.table("documents")
             .select("chunks")
             .eq("id", document_id)
+            .eq("user_id", user_id)
             .execute()
         )
         if not result.data:
@@ -120,6 +124,7 @@ async def evaluate_answer_endpoint(
     chunk_index: int | None = Form(None),
     source_excerpt: str | None = Form(None),
     audio: UploadFile | None = File(None),
+    user_id: str = Depends(require_current_user),
 ):
     """
     Pipeline de avaliação:
@@ -129,7 +134,7 @@ async def evaluate_answer_endpoint(
     4. Retorna score, feedback e model_answer.
     """
     audio_path = None
-    source = get_source_reference(document_id, chunk_index, source_excerpt)
+    source = get_source_reference(document_id, chunk_index, source_excerpt, user_id)
 
     # --- VALIDAÇÃO E UPLOAD DO ÁUDIO (opcional) ---
     if audio and audio.filename:
@@ -152,6 +157,11 @@ async def evaluate_answer_endpoint(
             difficulty=difficulty,
         )
     except Exception as e:
+        if audio_path:
+            try:
+                delete_audio(audio_path)
+            except Exception:
+                pass
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=api_message(language, 'answer_evaluation', error=str(e)),
@@ -160,7 +170,10 @@ async def evaluate_answer_endpoint(
     # --- PERSISTÊNCIA DA SESSÃO ---
     try:
         supabase = get_supabase_client()
+        session_document_id = document_id if source else None
         supabase.table("quiz_sessions").insert({
+            "user_id": user_id,
+            "document_id": session_document_id,
             "question": question,
             "reference_answer": reference_answer,
             "student_answer": student_answer,
@@ -168,8 +181,19 @@ async def evaluate_answer_endpoint(
             "feedback": gemini_result.get("feedback", ""),
             "model_answer": gemini_result.get("model_answer", ""),
             "audio_path": audio_path,
+            "audio_expires_at": (
+                (datetime.now(UTC) + timedelta(days=settings.material_retention_days)).isoformat()
+                if audio_path else None
+            ),
+            "source_excerpt": source["excerpt"] if source else None,
+            "source_page": source["page_number"] if source else None,
         }).execute()
     except Exception as e:
+        if audio_path:
+            try:
+                delete_audio(audio_path)
+            except Exception:
+                pass
         # Não bloqueia o retorno se a persistência falhar
         print(f"⚠️ Erro ao salvar sessão no banco: {e}")
 

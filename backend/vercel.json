@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/internal/cleanup-expired-materials",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

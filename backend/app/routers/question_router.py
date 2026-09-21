@@ -5,7 +5,7 @@ Question Router — endpoint de geração de perguntas via Gemini.
 import json
 import random
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.localization import api_message
 from app.schemas.question import GenerateQuestionRequest, GenerateQuestionResponse
@@ -15,6 +15,7 @@ from app.services.pdf_service import (
     normalize_document_chunks,
     validate_source_excerpt,
 )
+from app.services.auth_service import require_current_user
 from app.services.supabase_client import get_supabase_client
 
 router = APIRouter()
@@ -26,7 +27,10 @@ router = APIRouter()
     summary="Gera uma pergunta baseada no PDF",
     description="Seleciona um chunk do documento e usa o Gemini para gerar uma pergunta técnica.",
 )
-async def generate_question_endpoint(request: GenerateQuestionRequest):
+async def generate_question_endpoint(
+    request: GenerateQuestionRequest,
+    user_id: str = Depends(require_current_user),
+):
     """
     Pipeline de geração:
     1. Busca o documento no Supabase pelo ID.
@@ -42,6 +46,7 @@ async def generate_question_endpoint(request: GenerateQuestionRequest):
         supabase.table("documents")
         .select("id, chunks")
         .eq("id", request.document_id)
+        .eq("user_id", user_id)
         .execute()
     )
 

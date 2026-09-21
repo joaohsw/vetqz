@@ -9,6 +9,8 @@ import { useEffect, useState } from 'react';
 import {
   ArrowRight,
   BarChart3,
+  Clock3,
+  FileText,
   Languages,
   ListTree,
   LogOut,
@@ -16,11 +18,13 @@ import {
   Moon,
   PawPrint,
   Sun,
+  Trash2,
   Upload,
   UserRound,
   X,
 } from 'lucide-react';
 import { formatMessage, getTranslations, LANGUAGE_OPTIONS } from '../i18n';
+import { deleteDocument, listMaterials } from '../lib/api';
 
 export default function Layout({
   children,
@@ -127,6 +131,7 @@ export default function Layout({
       {session && isAccountMenuOpen && (
         <AccountSidebar
           copy={copy}
+          language={language}
           userLabel={userLabel}
           isAnonymous={isAnonymous}
           isSigningOut={isSigningOut}
@@ -284,6 +289,7 @@ function SettingsControls({
 
 function AccountSidebar({
   copy,
+  language,
   userLabel,
   isAnonymous,
   isSigningOut,
@@ -291,6 +297,51 @@ function AccountSidebar({
   onClose,
   onSignOut,
 }) {
+  const [materials, setMaterials] = useState([]);
+  const [materialsState, setMaterialsState] = useState('loading');
+  const [deletingId, setDeletingId] = useState(null);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadMaterials = async () => {
+      try {
+        const data = await listMaterials(language);
+        if (isActive) {
+          setMaterials(data);
+          setMaterialsState('ready');
+        }
+      } catch {
+        if (isActive) setMaterialsState('error');
+      }
+    };
+
+    loadMaterials();
+    return () => { isActive = false; };
+  }, [language]);
+
+  const formatExpiry = (date) => new Intl.DateTimeFormat(
+    language === 'es-CL' ? 'es-CL' : 'pt-BR',
+    { day: '2-digit', month: 'short' },
+  ).format(new Date(date));
+
+  const handleDeleteMaterial = async (material) => {
+    if (deletingId) return;
+    if (!window.confirm(formatMessage(copy.layout.deleteMaterialConfirm, { name: material.filename }))) {
+      return;
+    }
+
+    setDeletingId(material.id);
+    try {
+      await deleteDocument(material.id, language);
+      setMaterials((current) => current.filter((item) => item.id !== material.id));
+    } catch {
+      setMaterialsState('error');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50" role="presentation">
       <button
@@ -339,8 +390,58 @@ function AccountSidebar({
           </div>
         </div>
 
-        {/* Future account navigation items can be added in this flexible area. */}
-        <div className="flex-1" />
+        <div className="px-5 pb-5 flex-1 overflow-y-auto">
+          <div className="flex items-start gap-2.5 py-3">
+            <Clock3 className="w-4 h-4 mt-0.5 text-teal-400 shrink-0" aria-hidden="true" />
+            <div>
+              <h3 className="text-sm font-700 text-text-1">{copy.layout.recentMaterials}</h3>
+              <p className="mt-0.5 text-xs leading-relaxed text-text-3">{copy.layout.recentMaterialsDescription}</p>
+            </div>
+          </div>
+
+          {materialsState === 'loading' && (
+            <div className="py-6 flex justify-center" aria-label={copy.layout.loadingMaterials}>
+              <span className="spinner w-4 h-4" aria-hidden="true" />
+            </div>
+          )}
+          {materialsState === 'error' && (
+            <p className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-xs leading-relaxed text-danger" role="alert">
+              {copy.layout.materialsError}
+            </p>
+          )}
+          {materialsState === 'ready' && materials.length === 0 && (
+            <p className="rounded-lg border border-dashed border-border-default p-3 text-xs leading-relaxed text-text-3">
+              {copy.layout.noRecentMaterials}
+            </p>
+          )}
+          {materialsState === 'ready' && materials.length > 0 && (
+            <ul className="space-y-2" aria-label={copy.layout.recentMaterials}>
+              {materials.map((material) => (
+                <li key={material.id} className="rounded-xl border border-border-subtle bg-surface-0 p-3">
+                  <div className="flex items-start gap-2.5">
+                    <FileText className="w-4 h-4 mt-0.5 text-text-3 shrink-0" aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-600 leading-snug text-text-1 break-words">{material.filename}</p>
+                      <p className="mt-1 text-[11px] text-text-3">
+                        {formatMessage(copy.layout.materialExpires, { date: formatExpiry(material.expires_at) })}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteMaterial(material)}
+                      disabled={deletingId === material.id}
+                      aria-label={formatMessage(copy.layout.deleteMaterial, { name: material.filename })}
+                      title={copy.layout.deleteMaterialAction}
+                      className="w-7 h-7 rounded-md flex items-center justify-center text-text-3 transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50"
+                    >
+                      {deletingId === material.id ? <span className="spinner w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         <div className="p-5 border-t border-border-subtle">
           {signOutFailed && (

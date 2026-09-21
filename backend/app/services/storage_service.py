@@ -86,3 +86,10 @@ def upload_audio(file_bytes: bytes, content_type: str) -> str:
     )
 
     return f"audios/{safe_name}"
+
+
+def delete_audio(storage_path: str) -> None:
+    """Remove um áudio temporário do bucket ``audios``."""
+    supabase = get_supabase_client()
+    file_name = storage_path.removeprefix("audios/")
+    supabase.storage.from_("audios").remove([file_name])

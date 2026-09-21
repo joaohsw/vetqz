@@ -167,3 +167,16 @@ export async function deleteDocument(documentId, language = DEFAULT_LANGUAGE) {
     await throwApiError(response, language);
   }
 }
+
+/**
+ * Lista PDFs temporários ainda disponíveis para a conta atual.
+ */
+export async function listMaterials(language = DEFAULT_LANGUAGE) {
+  const response = await apiFetch('/api/materials');
+
+  if (!response.ok) {
+    await throwApiError(response, language);
+  }
+
+  return response.json();
+}
