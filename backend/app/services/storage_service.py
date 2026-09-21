@@ -53,6 +53,13 @@ def delete_pdf(storage_path: str) -> None:
     supabase.storage.from_("materials").remove([file_name])
 
 
+def download_pdf(storage_path: str) -> bytes:
+    """Baixa um PDF privado do bucket ``materials`` para processamento no backend."""
+    supabase = get_supabase_client()
+    file_name = storage_path.removeprefix("materials/")
+    return supabase.storage.from_("materials").download(file_name)
+
+
 def upload_audio(file_bytes: bytes, content_type: str) -> str:
     """
     Faz upload do áudio ao bucket 'audio' no Supabase Storage.

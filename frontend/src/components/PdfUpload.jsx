@@ -9,7 +9,7 @@ import { Upload, FileText, X, AlertCircle, ArrowRight } from 'lucide-react';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { getTranslations } from '../i18n';
 
-export default function PdfUpload({ onUpload, isUploading = false, language }) {
+export default function PdfUpload({ onUpload, isUploading = false, uploadProgress = 0, language }) {
   const copy = getTranslations(language);
   const { file, error, isDragging, onFileChange, onDragOver, onDragLeave, onDrop, clearFile } =
     useFileUpload(language);
@@ -111,7 +111,9 @@ export default function PdfUpload({ onUpload, isUploading = false, language }) {
           {isUploading ? (
             <>
               <span className="spinner" />
-              {copy.pdfUpload.processing}
+              {uploadProgress > 0 && uploadProgress < 100
+                ? copy.pdfUpload.uploading.replace('{progress}', uploadProgress)
+                : copy.pdfUpload.processing}
             </>
           ) : (
             <>

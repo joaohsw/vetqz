@@ -6,6 +6,7 @@
  */
 
 import { DEFAULT_LANGUAGE, formatMessage, getTranslations } from '../i18n';
+import { uploadPdfDirectly } from './pdf-storage';
 import { supabase } from './supabase';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
@@ -34,18 +35,29 @@ async function throwApiError(response, language) {
 }
 
 /**
- * Upload de PDF para o backend.
+ * Cria uma autorização curta, envia o PDF direto ao Storage e pede o processamento.
  * @param {File} file - Arquivo PDF selecionado pelo usuário.
+ * @param {Function} onProgress - Recebe o percentual de upload quando disponível.
  * @returns {Promise<Object>} - { document_id, filename, num_pages, num_chunks }
  */
-export async function uploadPdf(file, language = DEFAULT_LANGUAGE) {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('language', language);
-
-  const response = await apiFetch('/api/upload-pdf', {
+export async function uploadPdf(file, language = DEFAULT_LANGUAGE, onProgress = null) {
+  const intentResponse = await apiFetch('/api/upload-intents', {
     method: 'POST',
-    body: formData,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename: file.name, size_bytes: file.size, language }),
+  });
+
+  if (!intentResponse.ok) {
+    await throwApiError(intentResponse, language);
+  }
+
+  const intent = await intentResponse.json();
+  await uploadPdfDirectly(file, intent.storage_path, onProgress);
+
+  const response = await apiFetch('/api/process-upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ upload_id: intent.upload_id, language }),
   });
 
   if (!response.ok) {

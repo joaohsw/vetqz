@@ -20,5 +20,7 @@ class CleanupExpiredMaterialsResponse(BaseModel):
 
     deleted_documents: int = 0
     deleted_audio: int = 0
+    deleted_upload_intents: int = 0
     failed_documents: int = 0
     failed_audio: int = 0
+    failed_upload_intents: int = 0

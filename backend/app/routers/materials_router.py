@@ -111,4 +111,19 @@ async def cleanup_expired_materials_endpoint(
             print(f"[vetQz] Could not remove expired audio {session.get('id')}: {error}")
             result.failed_audio += 1
 
+    expired_intents = (
+        supabase.table("upload_intents")
+        .select("id, storage_path")
+        .lte("expires_at", now)
+        .execute()
+    )
+    for intent in expired_intents.data or []:
+        try:
+            delete_pdf(intent["storage_path"])
+            supabase.table("upload_intents").delete().eq("id", intent["id"]).execute()
+            result.deleted_upload_intents += 1
+        except Exception as error:
+            print(f"[vetQz] Could not remove expired upload intent {intent.get('id')}: {error}")
+            result.failed_upload_intents += 1
+
     return result

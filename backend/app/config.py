@@ -37,8 +37,8 @@ class Settings(BaseSettings):
     allowed_origins: str = "http://localhost:5173"
 
     # Limites de upload
-    # Mantém o multipart abaixo do limite de 4,5 MB das Vercel Functions.
-    max_pdf_size_mb: int = 4
+    # O upload vai diretamente ao Supabase Storage; a API só recebe metadata.
+    max_pdf_size_mb: int = 25
     max_audio_size_mb: int = 4
 
     # Retenção temporária dos arquivos de estudo. O histórico pedagógico

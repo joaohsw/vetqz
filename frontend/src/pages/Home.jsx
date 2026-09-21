@@ -88,6 +88,7 @@ export default function Home({ language, onProgressChange }) {
 
   // UI state
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isDeletingDocument, setIsDeletingDocument] = useState(false);
@@ -166,9 +167,10 @@ export default function Home({ language, onProgressChange }) {
 
   const handleUpload = async (file) => {
     setIsUploading(true);
+    setUploadProgress(0);
     setError(null);
     try {
-      const upload = await uploadPdf(file, language);
+      const upload = await uploadPdf(file, language, setUploadProgress);
       const analysis = await analyzeTopics(upload.document_id, language);
       setDocumentId(upload.document_id);
       setDocumentName(upload.filename);
@@ -187,6 +189,7 @@ export default function Home({ language, onProgressChange }) {
       setError(requestError.message);
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -385,7 +388,12 @@ export default function Home({ language, onProgressChange }) {
             </h2>
             <p className="text-sm text-text-3 mt-1">{copy.home.uploadDescription}</p>
           </div>
-          <PdfUpload onUpload={handleUpload} isUploading={isUploading} language={language} />
+          <PdfUpload
+            onUpload={handleUpload}
+            isUploading={isUploading}
+            uploadProgress={uploadProgress}
+            language={language}
+          />
         </section>
       )}
 
