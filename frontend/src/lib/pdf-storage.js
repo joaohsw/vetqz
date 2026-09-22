@@ -54,7 +54,7 @@ async function uploadWithTus(file, objectPath, onProgress) {
 }
 
 export async function uploadPdfDirectly(file, storagePath, onProgress) {
-  const objectPath = storagePath.removeprefix('materials/');
+  const objectPath = storagePath.replace(/^materials\//, '');
 
   if (file.size > TUS_THRESHOLD_BYTES) {
     await uploadWithTus(file, objectPath, onProgress);
