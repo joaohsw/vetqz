@@ -375,9 +375,10 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
       throw new Error(copy.home.sessionTopicError);
     }
 
+    // Retomar uma sessão nunca deve alterar a quantidade escolhida pelo aluno.
     const totalQuestions = Math.max(
-      restoredTopics.length,
-      Math.min(savedSessionContinuation?.plannedQuestionCount || restoredTopics.length, MAX_SESSION_QUESTIONS),
+      1,
+      Math.min(savedSessionContinuation?.plannedQuestionCount || 1, MAX_SESSION_QUESTIONS),
     );
     return {
       topics: restoredTopics,
@@ -526,13 +527,18 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
     }
     setRetryAttemptId(null);
     const nextPosition = currentQuestionIndex + 1;
-    const expandedPlan = [
-      ...questionPlan.slice(0, nextPosition),
-      activeTopic.id,
-      ...questionPlan.slice(nextPosition),
-    ];
-    setQuestionPlan(expandedPlan);
-    await loadQuestion(nextPosition, expandedPlan);
+    if (nextPosition >= questionPlan.length) {
+      await advanceSession();
+      return;
+    }
+
+    // Pratica o mesmo assunto na próxima posição já existente, sem adicionar
+    // questões além da quantidade escolhida na configuração da sessão.
+    const adjustedPlan = questionPlan.map((topicId, index) => (
+      index === nextPosition ? activeTopic.id : topicId
+    ));
+    setQuestionPlan(adjustedPlan);
+    await loadQuestion(nextPosition, adjustedPlan);
   };
 
   const averageScore = sessionResults.length
