@@ -37,6 +37,7 @@ export default function Layout({
   isAnonymous = false,
   onSignOut,
   studyProgressKey = 'upload',
+  onResumeStudy,
 }) {
   const copy = getTranslations(language);
   const isLight = theme === 'light';
@@ -138,6 +139,7 @@ export default function Layout({
           signOutFailed={signOutFailed}
           onClose={() => setIsAccountMenuOpen(false)}
           onSignOut={handleSignOut}
+          onResumeStudy={onResumeStudy}
         />
       )}
 
@@ -296,6 +298,7 @@ function AccountSidebar({
   signOutFailed,
   onClose,
   onSignOut,
+  onResumeStudy,
 }) {
   const [materials, setMaterials] = useState([]);
   const [materialsState, setMaterialsState] = useState('loading');
@@ -360,6 +363,11 @@ function AccountSidebar({
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const handleResumeStudy = (studyDetails) => {
+    onResumeStudy?.(studyDetails);
+    onClose();
   };
 
   return (
@@ -457,6 +465,17 @@ function AccountSidebar({
                       {deletingId === material.id ? <span className="spinner w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />}
                     </button>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => handleResumeStudy({
+                      documentId: material.id,
+                      documentName: material.filename,
+                    })}
+                    className="mt-3 inline-flex items-center gap-1 text-xs font-600 text-teal-400 transition-colors hover:text-teal-300"
+                  >
+                    {copy.layout.studyMaterial}
+                    <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+                  </button>
                 </li>
               ))}
             </ul>
@@ -512,6 +531,54 @@ function AccountSidebar({
                         {formatMessage(copy.layout.studyHistoryTopics, {
                           topics: session.topic_titles.slice(0, 2).join(', '),
                         })}
+                      </p>
+                    )}
+                    {session.document_id ? (
+                      <button
+                        type="button"
+                        onClick={() => handleResumeStudy({
+                          documentId: session.document_id,
+                          documentName: session.document_filename,
+                          topicTitles: session.topic_titles,
+                          plannedQuestionCount: session.planned_question_count,
+                          difficulty: session.difficulty,
+                          feedbackMode: session.feedback_mode,
+                          studySessionId: session.id,
+                          resumeFromBeginning: session.status === 'completed',
+                          savedAttempts: (session.attempts || []).map((attempt) => ({
+                            id: attempt.id,
+                            question: attempt.question,
+                            referenceAnswer: attempt.reference_answer,
+                            topicTitle: attempt.topic_title,
+                            questionPosition: attempt.question_position,
+                            sourceExcerpt: attempt.source_excerpt,
+                          })),
+                          lastAttempt: session.status === 'active' && session.last_attempt
+                            ? {
+                              question: session.last_attempt.question,
+                              id: session.last_attempt.id,
+                              referenceAnswer: session.last_attempt.reference_answer,
+                              topicTitle: session.last_attempt.topic_title,
+                              questionPosition: session.last_attempt.question_position,
+                              sourceExcerpt: session.last_attempt.source_excerpt,
+                            }
+                            : null,
+                          retryAttemptId: session.status === 'active' && session.last_attempt
+                            ? session.last_attempt.id
+                            : null,
+                        })}
+                        className="mt-3 inline-flex items-center gap-1 text-xs font-600 text-teal-400 transition-colors hover:text-teal-300"
+                      >
+                        {session.status === 'active' && session.last_attempt
+                          ? copy.layout.retrySavedQuestion
+                          : session.status === 'active'
+                          ? copy.layout.resumeStudy
+                          : copy.layout.repeatStudy}
+                        <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+                      </button>
+                    ) : (
+                      <p className="mt-3 text-[11px] text-text-3">
+                        {copy.layout.studyMaterialUnavailable}
                       </p>
                     )}
                   </li>

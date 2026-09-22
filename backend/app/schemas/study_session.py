@@ -26,15 +26,32 @@ class StudySessionResponse(BaseModel):
     started_at: datetime
 
 
+class StudySessionAttemptResponse(BaseModel):
+    """Última questão respondida, usada para retomá-la sem gerar outra."""
+
+    id: str
+    question: str
+    reference_answer: str
+    topic_title: str | None = None
+    question_position: int | None = Field(default=None, ge=1)
+    source_excerpt: str | None = None
+    source_page: int | None = Field(default=None, ge=1)
+
+
 class StudySessionHistoryResponse(BaseModel):
     """Resumo de uma sessão para a área de histórico da conta."""
 
     id: str
+    document_id: str | None = None
     document_filename: str
     topic_titles: list[str] = Field(default_factory=list)
     planned_question_count: int = Field(ge=1)
+    difficulty: Difficulty = DEFAULT_DIFFICULTY
+    feedback_mode: FeedbackMode = "immediate"
     answered_question_count: int = Field(ge=0)
     average_score: float | None = Field(default=None, ge=0, le=10)
+    attempts: list[StudySessionAttemptResponse] = Field(default_factory=list)
+    last_attempt: StudySessionAttemptResponse | None = None
     status: Literal["active", "completed"]
     started_at: datetime
     completed_at: datetime | None = None

@@ -169,13 +169,19 @@ export function useAudioRecorder(language) {
    * Inicia a gravação de áudio.
    * Solicita permissão do microfone se necessário.
    */
-  const startRecording = useCallback(async () => {
+  const startRecording = useCallback(async (currentTranscript = '') => {
     try {
       setError(null);
       setAudioBlob(null);
       setAudioUrl(null);
       setDuration(0);
-      setTranscript('');
+      // Preserve text typed before recording. Speech recognition appends to this
+      // baseline instead of replacing the student's draft answer.
+      const transcriptBaseline = typeof currentTranscript === 'string'
+        ? currentTranscript.trim()
+        : '';
+      finalTranscript.current = transcriptBaseline;
+      setTranscript(transcriptBaseline);
       setTranscriptionError(null);
       audioChunks.current = [];
 
@@ -218,7 +224,7 @@ export function useAudioRecorder(language) {
       mediaRecorder.current.start(250); // Coleta dados a cada 250ms
       statusRef.current = 'recording';
       setStatus('recording');
-      startSpeechRecognition(true);
+      startSpeechRecognition(false);
 
       // Timer de duração
       startTimeRef.current = Date.now();

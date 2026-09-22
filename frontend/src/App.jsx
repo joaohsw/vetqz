@@ -35,6 +35,7 @@ export default function App() {
   const [publicPage, setPublicPage] = useState('landing');
   const [authMode, setAuthMode] = useState('signIn');
   const [studyProgressKey, setStudyProgressKey] = useState('upload');
+  const [resumeRequest, setResumeRequest] = useState(null);
   const { session, user, isAnonymous, signOut } = useAuth();
 
   const openAuth = (mode) => {
@@ -69,9 +70,15 @@ export default function App() {
       isAnonymous={isAnonymous}
       onSignOut={signOut}
       studyProgressKey={studyProgressKey}
+      onResumeStudy={setResumeRequest}
     >
       {session ? (
-        <Home language={language} onProgressChange={setStudyProgressKey} />
+        <Home
+          language={language}
+          onProgressChange={setStudyProgressKey}
+          resumeRequest={resumeRequest}
+          onResumeHandled={() => setResumeRequest(null)}
+        />
       ) : publicPage === 'landing' ? (
         <Landing
           language={language}

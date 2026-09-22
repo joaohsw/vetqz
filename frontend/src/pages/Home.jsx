@@ -62,7 +62,7 @@ function createQuestionPlan(selectedTopics, questionCount) {
   );
 }
 
-export default function Home({ language, onProgressChange }) {
+export default function Home({ language, onProgressChange, resumeRequest, onResumeHandled }) {
   const copy = getTranslations(language);
   const [step, setStep] = useState(STEPS.UPLOAD);
 
@@ -81,6 +81,7 @@ export default function Home({ language, onProgressChange }) {
   const [questionPlan, setQuestionPlan] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [sessionResults, setSessionResults] = useState([]);
+  const [savedSessionContinuation, setSavedSessionContinuation] = useState(null);
 
   // Active question
   const [activeTopic, setActiveTopic] = useState(null);
@@ -89,6 +90,7 @@ export default function Home({ language, onProgressChange }) {
   const [chunkUsed, setChunkUsed] = useState('');
   const [chunkIndex, setChunkIndex] = useState(null);
   const [sourceExcerpt, setSourceExcerpt] = useState('');
+  const [retryAttemptId, setRetryAttemptId] = useState(null);
 
   // Answer and result
   const [studentAnswer, setStudentAnswer] = useState('');
@@ -97,6 +99,7 @@ export default function Home({ language, onProgressChange }) {
 
   // UI state
   const [isUploading, setIsUploading] = useState(false);
+  const [isRestoringMaterial, setIsRestoringMaterial] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
@@ -133,14 +136,122 @@ export default function Home({ language, onProgressChange }) {
     setChunkUsed('');
     setChunkIndex(null);
     setSourceExcerpt('');
+    setRetryAttemptId(null);
     setStudentAnswer('');
     setAudioBlob(null);
     setResult(null);
   };
 
-  const loadQuestion = async (position, plan = questionPlan) => {
+  useEffect(() => {
+    if (!resumeRequest?.documentId) return undefined;
+
+    let cancelled = false;
+
+    const resumeMaterial = async () => {
+      setIsUploading(true);
+      setIsRestoringMaterial(true);
+      setError(null);
+      resetQuestionState();
+      setStudySessionId(null);
+      setQuestionPlan([]);
+      setCurrentQuestionIndex(0);
+      setSessionResults([]);
+
+      try {
+        const savedAttempts = resumeRequest.savedAttempts || [];
+        const savedAttempt = resumeRequest.resumeFromBeginning
+          ? savedAttempts[0]
+          : resumeRequest.lastAttempt;
+        if (savedAttempt) {
+          const attempt = savedAttempt;
+          const savedQuestionCount = Number(resumeRequest.plannedQuestionCount);
+          const plannedQuestionCount = Math.max(
+            1,
+            Math.min(
+              Number.isFinite(savedQuestionCount) ? savedQuestionCount : 1,
+              MAX_SESSION_QUESTIONS,
+            ),
+          );
+          const savedQuestionIndex = Math.min(
+            Math.max((Number(attempt.questionPosition) || 1) - 1, 0),
+            plannedQuestionCount - 1,
+          );
+          setDocumentId(resumeRequest.documentId);
+          setDocumentName(resumeRequest.documentName || 'PDF');
+          setTotalChunks(0);
+          setTopics([]);
+          setSelectedTopicIds([]);
+          setQuestionCount(plannedQuestionCount);
+          setDifficulty(resumeRequest.difficulty || DIFFICULTIES.MEDIUM);
+          setFeedbackMode(FEEDBACK_MODES.IMMEDIATE);
+          setStudySessionId(resumeRequest.studySessionId || null);
+          setQuestionPlan(Array.from(
+            { length: plannedQuestionCount },
+            (_, index) => (index === savedQuestionIndex ? 'saved-question' : null),
+          ));
+          setCurrentQuestionIndex(savedQuestionIndex);
+          setSavedSessionContinuation({
+            topicTitles: resumeRequest.topicTitles || [],
+            plannedQuestionCount,
+            savedAttempts,
+          });
+          setActiveTopic({ id: 'saved-question', title: attempt.topicTitle || '' });
+          setQuestion(attempt.question);
+          setReferenceAnswer(attempt.referenceAnswer);
+          setChunkUsed('');
+          setChunkIndex(null);
+          setSourceExcerpt(attempt.sourceExcerpt || '');
+          setRetryAttemptId(resumeRequest.retryAttemptId || null);
+          setStep(STEPS.ANSWER);
+          return;
+        }
+
+        const analysis = await analyzeTopics(resumeRequest.documentId, language);
+        if (cancelled) return;
+
+        const allTopicIds = analysis.topics.map((topic) => topic.id);
+        const requestedTopics = resumeRequest.topicTitles || [];
+        const matchingTopicIds = analysis.topics
+          .filter((topic) => requestedTopics.includes(topic.title))
+          .map((topic) => topic.id);
+        const restoredTopicIds = matchingTopicIds.length > 0 ? matchingTopicIds : allTopicIds;
+        const savedQuestionCount = Number(resumeRequest.plannedQuestionCount);
+        const restoredQuestionCount = Math.max(
+          restoredTopicIds.length,
+          Math.min(
+            Number.isFinite(savedQuestionCount) ? savedQuestionCount : restoredTopicIds.length,
+            MAX_SESSION_QUESTIONS,
+          ),
+        );
+
+        setDocumentId(resumeRequest.documentId);
+        setDocumentName(resumeRequest.documentName || 'PDF');
+        setTotalChunks(0);
+        setTopics(analysis.topics);
+        setSelectedTopicIds(restoredTopicIds);
+        setQuestionCount(restoredQuestionCount);
+        setDifficulty(resumeRequest.difficulty || DIFFICULTIES.MEDIUM);
+        setFeedbackMode(resumeRequest.feedbackMode || FEEDBACK_MODES.IMMEDIATE);
+        setSavedSessionContinuation(null);
+        setStep(analysis.is_veterinary === false ? STEPS.CONTENT_WARNING : STEPS.SETUP);
+      } catch (requestError) {
+        if (!cancelled) setError(requestError.message);
+      } finally {
+        if (!cancelled) {
+          setIsUploading(false);
+          setIsRestoringMaterial(false);
+          onResumeHandled?.();
+        }
+      }
+    };
+
+    resumeMaterial();
+    return () => { cancelled = true; };
+  }, [language, onResumeHandled, resumeRequest]);
+
+  const loadQuestion = async (position, plan = questionPlan, topicList = topics) => {
     const topicId = plan[position];
-    const topic = topics.find((item) => item.id === topicId);
+    const topic = topicList.find((item) => item.id === topicId);
     if (!topic) {
       setError(copy.home.sessionTopicError);
       return;
@@ -178,6 +289,7 @@ export default function Home({ language, onProgressChange }) {
     setIsUploading(true);
     setUploadProgress(0);
     setError(null);
+    setSavedSessionContinuation(null);
     try {
       const upload = await uploadPdf(file, language, setUploadProgress);
       const analysis = await analyzeTopics(upload.document_id, language);
@@ -240,6 +352,7 @@ export default function Home({ language, onProgressChange }) {
       setStudySessionId(studySession.id);
       setQuestionPlan(plan);
       setSessionResults([]);
+      setSavedSessionContinuation(null);
       await loadQuestion(0, plan);
     } catch (requestError) {
       setError(requestError.message);
@@ -251,6 +364,26 @@ export default function Home({ language, onProgressChange }) {
     if (topicIds.length > 0 && topicIds.length <= MAX_SESSION_QUESTIONS) {
       setQuestionCount((currentCount) => Math.max(topicIds.length, currentCount));
     }
+  };
+
+  const prepareSavedSessionContinuation = async () => {
+    const analysis = await analyzeTopics(documentId, language);
+    const requestedTopics = savedSessionContinuation?.topicTitles || [];
+    const matchingTopics = analysis.topics.filter((topic) => requestedTopics.includes(topic.title));
+    const restoredTopics = matchingTopics.length > 0 ? matchingTopics : analysis.topics;
+    if (!restoredTopics.length) {
+      throw new Error(copy.home.sessionTopicError);
+    }
+
+    const totalQuestions = Math.max(
+      restoredTopics.length,
+      Math.min(savedSessionContinuation?.plannedQuestionCount || restoredTopics.length, MAX_SESSION_QUESTIONS),
+    );
+    return {
+      topics: restoredTopics,
+      plan: createQuestionPlan(restoredTopics, totalQuestions),
+      totalQuestions,
+    };
   };
 
   const advanceSession = async () => {
@@ -266,7 +399,48 @@ export default function Home({ language, onProgressChange }) {
       setStep(STEPS.SUMMARY);
       return;
     }
-    await loadQuestion(nextIndex);
+
+    let plan = questionPlan;
+    let topicList = topics;
+    if (savedSessionContinuation) {
+      const savedQuestion = savedSessionContinuation.savedAttempts?.find(
+        (attempt) => Number(attempt.questionPosition) === nextIndex + 1,
+      );
+      if (savedQuestion) {
+        resetQuestionState();
+        setCurrentQuestionIndex(nextIndex);
+        setActiveTopic({ id: 'saved-question', title: savedQuestion.topicTitle || '' });
+        setQuestion(savedQuestion.question);
+        setReferenceAnswer(savedQuestion.referenceAnswer);
+        setChunkUsed('');
+        setChunkIndex(null);
+        setSourceExcerpt(savedQuestion.sourceExcerpt || '');
+        setRetryAttemptId(savedQuestion.id);
+        setStep(STEPS.ANSWER);
+        return;
+      }
+
+      setIsGenerating(true);
+      setError(null);
+      setQuestion('');
+      setStep(STEPS.QUESTION);
+      try {
+        const restoredSession = await prepareSavedSessionContinuation();
+        plan = restoredSession.plan;
+        topicList = restoredSession.topics;
+        setTopics(restoredSession.topics);
+        setSelectedTopicIds(restoredSession.topics.map((topic) => topic.id));
+        setQuestionCount(restoredSession.totalQuestions);
+        setQuestionPlan(restoredSession.plan);
+        setSavedSessionContinuation(null);
+      } catch (requestError) {
+        setError(requestError.message);
+        setStep(STEPS.RESULT);
+        setIsGenerating(false);
+        return;
+      }
+    }
+    await loadQuestion(nextIndex, plan, topicList);
   };
 
   const handleSubmitAnswer = async () => {
@@ -286,6 +460,7 @@ export default function Home({ language, onProgressChange }) {
         studySessionId,
         topicTitle: activeTopic?.title || null,
         questionPosition: currentQuestionIndex + 1,
+        retryAttemptId,
         difficulty,
         language,
       });
@@ -315,6 +490,7 @@ export default function Home({ language, onProgressChange }) {
     setQuestionPlan([]);
     setCurrentQuestionIndex(0);
     setSessionResults([]);
+    setSavedSessionContinuation(null);
     setError(null);
     setStep(STEPS.SETUP);
   };
@@ -330,6 +506,7 @@ export default function Home({ language, onProgressChange }) {
     setQuestionPlan([]);
     setCurrentQuestionIndex(0);
     setSessionResults([]);
+    setSavedSessionContinuation(null);
     setError(null);
     setStep(STEPS.UPLOAD);
   };
@@ -343,6 +520,11 @@ export default function Home({ language, onProgressChange }) {
 
   const handleAnotherQuestionSameTopic = async () => {
     if (!activeTopic) return;
+    if (savedSessionContinuation) {
+      await advanceSession();
+      return;
+    }
+    setRetryAttemptId(null);
     const nextPosition = currentQuestionIndex + 1;
     const expandedPlan = [
       ...questionPlan.slice(0, nextPosition),
@@ -382,12 +564,34 @@ export default function Home({ language, onProgressChange }) {
         })}
       </nav>
 
+      {isRestoringMaterial && (
+        <section
+          className="card animate-enter p-4"
+          role="status"
+          aria-live="polite"
+          aria-label={copy.home.restoringMaterial}
+        >
+          <div className="flex items-center gap-3">
+            <span className="spinner w-5 h-5 shrink-0" aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="text-sm font-700 text-text-1">{copy.home.restoringMaterial}</p>
+              <p className="mt-0.5 text-xs text-text-3">{copy.home.restoringMaterialDescription}</p>
+            </div>
+          </div>
+          <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-3" aria-hidden="true">
+            <div className="h-full w-2/3 rounded-full bg-teal-400 animate-pulse" />
+          </div>
+        </section>
+      )}
+
       {documentId && step !== STEPS.UPLOAD && (
         <div className="flex items-center justify-between px-4 py-2.5 rounded-lg bg-surface-1 border border-border-subtle text-sm">
           <div className="flex items-center gap-2 text-text-2 min-w-0">
             <FileText className="w-3.5 h-3.5 text-teal-400 shrink-0" />
             <span className="truncate">{documentName}</span>
-            <span className="text-text-3 shrink-0">{totalChunks} {copy.home.excerpts}</span>
+            {totalChunks > 0 && (
+              <span className="text-text-3 shrink-0">{totalChunks} {copy.home.excerpts}</span>
+            )}
             {questionPlan.length > 0 && step !== STEPS.SETUP && (
               <span className="text-teal-400 shrink-0">
                 {copy.home.questionProgress

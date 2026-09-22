@@ -189,7 +189,7 @@ export default function AudioRecorder({
             id="audio-start-btn"
             icon={Mic}
             label={copy.audio.start}
-            onClick={startRecording}
+            onClick={() => startRecording(transcriptValue)}
             disabled={disabled}
             variant="danger"
             size="lg"

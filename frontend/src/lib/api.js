@@ -139,6 +139,7 @@ export async function evaluateAnswer({
   studySessionId = null,
   topicTitle = null,
   questionPosition = null,
+  retryAttemptId = null,
   difficulty = 'medium',
   language = DEFAULT_LANGUAGE,
 }) {
@@ -156,6 +157,7 @@ export async function evaluateAnswer({
   if (Number.isInteger(questionPosition)) {
     formData.append('question_position', String(questionPosition));
   }
+  if (retryAttemptId) formData.append('retry_attempt_id', retryAttemptId);
 
   if (audioBlob) {
     formData.append('audio', audioBlob, 'recording.webm');

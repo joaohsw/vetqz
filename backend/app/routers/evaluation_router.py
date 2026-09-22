@@ -79,7 +79,7 @@ def get_source_reference(
     user_id: str,
 ) -> dict | None:
     """Recupera a fonte diretamente do documento, sem confiar no cliente."""
-    if not document_id or chunk_index is None or chunk_index < 0:
+    if not document_id:
         return None
 
     try:
@@ -96,13 +96,27 @@ def get_source_reference(
         raw_chunks = result.data[0]["chunks"]
         raw_chunks = json.loads(raw_chunks) if isinstance(raw_chunks, str) else raw_chunks
         chunks = normalize_document_chunks(raw_chunks)
-        if chunk_index >= len(chunks):
-            return None
-        chunk = chunks[chunk_index]
-        return {
-            "excerpt": validate_source_excerpt(source_excerpt, str(chunk["text"])),
-            "page_number": chunk["page_number"],
-        }
+        if chunk_index is not None and 0 <= chunk_index < len(chunks):
+            chunk = chunks[chunk_index]
+            return {
+                "excerpt": validate_source_excerpt(source_excerpt, str(chunk["text"])),
+                "page_number": chunk["page_number"],
+            }
+
+        # Questões recuperadas do histórico não guardavam o índice do trecho,
+        # mas guardam uma citação curta. Localizamos a citação no PDF do aluno
+        # para manter a fonte confiável ao refazer a mesma questão.
+        if source_excerpt:
+            normalized_excerpt = " ".join(source_excerpt.split()).casefold()
+            for chunk in chunks:
+                chunk_text = str(chunk["text"])
+                normalized_chunk_text = " ".join(chunk_text.split()).casefold()
+                if normalized_excerpt in normalized_chunk_text:
+                    return {
+                        "excerpt": validate_source_excerpt(source_excerpt, chunk_text),
+                        "page_number": chunk["page_number"],
+                    }
+        return None
     except Exception as error:
         print(f"[vetQz] Unable to load source reference: {error}")
         return None
@@ -147,6 +161,7 @@ async def evaluate_answer_endpoint(
     study_session_id: str | None = Form(None),
     topic_title: str | None = Form(None),
     question_position: int | None = Form(None),
+    retry_attempt_id: str | None = Form(None),
     audio: UploadFile | None = File(None),
     user_id: str = Depends(require_current_user),
 ):
@@ -163,8 +178,29 @@ async def evaluate_answer_endpoint(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="A posição da pergunta deve começar em 1.",
-        )
+    )
     owned_study_session_id = get_owned_study_session(study_session_id, user_id)
+    previous_attempt = None
+    if retry_attempt_id:
+        retry_result = (
+            get_supabase_client()
+            .table("quiz_sessions")
+            .select("id, study_session_id, audio_path")
+            .eq("id", retry_attempt_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        if not retry_result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="A tentativa que você quer refazer não foi encontrada.",
+            )
+        previous_attempt = retry_result.data[0]
+        if not owned_study_session_id or previous_attempt.get("study_session_id") != owned_study_session_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="A tentativa não pertence à sessão de estudo informada.",
+            )
 
     # --- VALIDAÇÃO E UPLOAD DO ÁUDIO (opcional) ---
     if audio and audio.filename:
@@ -201,7 +237,7 @@ async def evaluate_answer_endpoint(
     try:
         supabase = get_supabase_client()
         session_document_id = document_id if source else None
-        supabase.table("quiz_sessions").insert({
+        attempt_data = {
             "user_id": user_id,
             "document_id": session_document_id,
             "study_session_id": owned_study_session_id,
@@ -220,7 +256,23 @@ async def evaluate_answer_endpoint(
             ),
             "source_excerpt": source["excerpt"] if source else None,
             "source_page": source["page_number"] if source else None,
-        }).execute()
+        }
+        if retry_attempt_id:
+            (
+                supabase.table("quiz_sessions")
+                .update(attempt_data)
+                .eq("id", retry_attempt_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
+            previous_audio_path = previous_attempt.get("audio_path") if previous_attempt else None
+            if previous_audio_path and previous_audio_path != audio_path:
+                try:
+                    delete_audio(previous_audio_path)
+                except Exception:
+                    pass
+        else:
+            supabase.table("quiz_sessions").insert(attempt_data).execute()
     except Exception as e:
         if audio_path:
             try:

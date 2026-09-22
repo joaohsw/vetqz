@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.localization import api_message
 from app.schemas.study_session import (
     CreateStudySessionRequest,
+    StudySessionAttemptResponse,
     StudySessionHistoryResponse,
     StudySessionResponse,
 )
@@ -30,8 +31,8 @@ async def list_study_sessions_endpoint(
         sessions_result = (
             supabase.table("study_sessions")
             .select(
-                "id, document_filename, topic_titles, planned_question_count, "
-                "status, started_at, completed_at"
+                "id, document_id, document_filename, topic_titles, planned_question_count, "
+                "difficulty, feedback_mode, status, started_at, completed_at"
             )
             .eq("user_id", user_id)
             .order("started_at", desc=True)
@@ -45,9 +46,13 @@ async def list_study_sessions_endpoint(
         session_ids = [session["id"] for session in sessions]
         attempts_result = (
             supabase.table("quiz_sessions")
-            .select("study_session_id, score")
+            .select(
+                "id, study_session_id, score, question, reference_answer, topic_title, "
+                "question_position, source_excerpt, source_page, created_at"
+            )
             .eq("user_id", user_id)
             .in_("study_session_id", session_ids)
+            .order("created_at", desc=True)
             .execute()
         )
     except Exception as error:
@@ -57,22 +62,60 @@ async def list_study_sessions_endpoint(
         ) from error
 
     scores_by_session: dict[str, list[float]] = {session_id: [] for session_id in session_ids}
+    attempts_by_session: dict[str, list[dict]] = {session_id: [] for session_id in session_ids}
+    latest_attempt_by_session: dict[str, dict] = {}
     for attempt in attempts_result.data or []:
         session_id = attempt.get("study_session_id")
         score = attempt.get("score")
         if session_id in scores_by_session and isinstance(score, (int, float)):
             scores_by_session[session_id].append(float(score))
+        if session_id in attempts_by_session:
+            attempts_by_session[session_id].append(attempt)
+        if session_id in latest_attempt_by_session:
+            continue
+        if session_id in scores_by_session:
+            latest_attempt_by_session[session_id] = attempt
 
     return [
         StudySessionHistoryResponse(
             id=session["id"],
+            document_id=session.get("document_id"),
             document_filename=session["document_filename"],
             topic_titles=session.get("topic_titles") or [],
             planned_question_count=session["planned_question_count"],
+            difficulty=session.get("difficulty", "medium"),
+            feedback_mode=session.get("feedback_mode", "immediate"),
             answered_question_count=len(scores_by_session[session["id"]]),
             average_score=(
                 round(sum(scores_by_session[session["id"]]) / len(scores_by_session[session["id"]]), 1)
                 if scores_by_session[session["id"]] else None
+            ),
+            attempts=[
+                StudySessionAttemptResponse(
+                    id=attempt["id"],
+                    question=attempt["question"],
+                    reference_answer=attempt["reference_answer"],
+                    topic_title=attempt.get("topic_title"),
+                    question_position=attempt.get("question_position"),
+                    source_excerpt=attempt.get("source_excerpt"),
+                    source_page=attempt.get("source_page"),
+                )
+                for attempt in sorted(
+                    attempts_by_session[session["id"]],
+                    key=lambda attempt: (attempt.get("question_position") or 0, attempt.get("created_at") or ""),
+                )
+            ],
+            last_attempt=(
+                StudySessionAttemptResponse(
+                    id=latest_attempt_by_session[session["id"]]["id"],
+                    question=latest_attempt_by_session[session["id"]]["question"],
+                    reference_answer=latest_attempt_by_session[session["id"]]["reference_answer"],
+                    topic_title=latest_attempt_by_session[session["id"]].get("topic_title"),
+                    question_position=latest_attempt_by_session[session["id"]].get("question_position"),
+                    source_excerpt=latest_attempt_by_session[session["id"]].get("source_excerpt"),
+                    source_page=latest_attempt_by_session[session["id"]].get("source_page"),
+                )
+                if session["id"] in latest_attempt_by_session else None
             ),
             status=session["status"],
             started_at=session["started_at"],
