@@ -108,6 +108,27 @@ def get_source_reference(
         return None
 
 
+def get_owned_study_session(study_session_id: str | None, user_id: str) -> str | None:
+    """Aceita somente uma sessão que pertença ao aluno que está respondendo."""
+    if not study_session_id:
+        return None
+
+    result = (
+        get_supabase_client()
+        .table("study_sessions")
+        .select("id")
+        .eq("id", study_session_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not result.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Sessão de estudo não encontrada.",
+        )
+    return result.data[0]["id"]
+
+
 @router.post(
     "/evaluate-answer",
     response_model=EvaluateAnswerResponse,
@@ -123,6 +144,9 @@ async def evaluate_answer_endpoint(
     document_id: str | None = Form(None),
     chunk_index: int | None = Form(None),
     source_excerpt: str | None = Form(None),
+    study_session_id: str | None = Form(None),
+    topic_title: str | None = Form(None),
+    question_position: int | None = Form(None),
     audio: UploadFile | None = File(None),
     user_id: str = Depends(require_current_user),
 ):
@@ -135,6 +159,12 @@ async def evaluate_answer_endpoint(
     """
     audio_path = None
     source = get_source_reference(document_id, chunk_index, source_excerpt, user_id)
+    if question_position is not None and question_position < 1:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A posição da pergunta deve começar em 1.",
+        )
+    owned_study_session_id = get_owned_study_session(study_session_id, user_id)
 
     # --- VALIDAÇÃO E UPLOAD DO ÁUDIO (opcional) ---
     if audio and audio.filename:
@@ -174,6 +204,9 @@ async def evaluate_answer_endpoint(
         supabase.table("quiz_sessions").insert({
             "user_id": user_id,
             "document_id": session_document_id,
+            "study_session_id": owned_study_session_id,
+            "topic_title": topic_title,
+            "question_position": question_position,
             "question": question,
             "reference_answer": reference_answer,
             "student_answer": student_answer,

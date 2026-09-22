@@ -21,7 +21,15 @@ import PdfUpload from '../components/PdfUpload';
 import QuestionCard from '../components/QuestionCard';
 import ResultCard from '../components/ResultCard';
 import StudySetup from '../components/StudySetup';
-import { analyzeTopics, deleteDocument, evaluateAnswer, generateQuestion, uploadPdf } from '../lib/api';
+import {
+  analyzeTopics,
+  completeStudySession,
+  createStudySession,
+  deleteDocument,
+  evaluateAnswer,
+  generateQuestion,
+  uploadPdf,
+} from '../lib/api';
 import { getTranslations } from '../i18n';
 
 const STEPS = {
@@ -61,6 +69,7 @@ export default function Home({ language, onProgressChange }) {
   // Document and generated study map
   const [documentId, setDocumentId] = useState(null);
   const [documentName, setDocumentName] = useState('');
+  const [studySessionId, setStudySessionId] = useState(null);
   const [totalChunks, setTotalChunks] = useState(0);
   const [topics, setTopics] = useState([]);
   const [selectedTopicIds, setSelectedTopicIds] = useState([]);
@@ -218,10 +227,23 @@ export default function Home({ language, onProgressChange }) {
       selectedTopics.length,
       Math.min(questionCount, MAX_SESSION_QUESTIONS),
     );
-    const plan = createQuestionPlan(selectedTopics, totalQuestions);
-    setQuestionPlan(plan);
-    setSessionResults([]);
-    await loadQuestion(0, plan);
+    try {
+      const studySession = await createStudySession({
+        documentId,
+        topicTitles: selectedTopics.map((topic) => topic.title),
+        plannedQuestionCount: totalQuestions,
+        difficulty,
+        feedbackMode,
+        language,
+      });
+      const plan = createQuestionPlan(selectedTopics, totalQuestions);
+      setStudySessionId(studySession.id);
+      setQuestionPlan(plan);
+      setSessionResults([]);
+      await loadQuestion(0, plan);
+    } catch (requestError) {
+      setError(requestError.message);
+    }
   };
 
   const handleSelectedTopicsChange = (topicIds) => {
@@ -234,6 +256,13 @@ export default function Home({ language, onProgressChange }) {
   const advanceSession = async () => {
     const nextIndex = currentQuestionIndex + 1;
     if (nextIndex >= questionPlan.length) {
+      if (studySessionId) {
+        try {
+          await completeStudySession(studySessionId, language);
+        } catch (requestError) {
+          setError(requestError.message);
+        }
+      }
       setStep(STEPS.SUMMARY);
       return;
     }
@@ -254,6 +283,9 @@ export default function Home({ language, onProgressChange }) {
         documentId,
         chunkIndex,
         sourceExcerpt,
+        studySessionId,
+        topicTitle: activeTopic?.title || null,
+        questionPosition: currentQuestionIndex + 1,
         difficulty,
         language,
       });
@@ -279,6 +311,7 @@ export default function Home({ language, onProgressChange }) {
 
   const handleConfigureAgain = () => {
     resetQuestionState();
+    setStudySessionId(null);
     setQuestionPlan([]);
     setCurrentQuestionIndex(0);
     setSessionResults([]);
@@ -290,6 +323,7 @@ export default function Home({ language, onProgressChange }) {
     resetQuestionState();
     setDocumentId(null);
     setDocumentName('');
+    setStudySessionId(null);
     setTotalChunks(0);
     setTopics([]);
     setSelectedTopicIds([]);

@@ -136,6 +136,9 @@ export async function evaluateAnswer({
   documentId = null,
   chunkIndex = null,
   sourceExcerpt = null,
+  studySessionId = null,
+  topicTitle = null,
+  questionPosition = null,
   difficulty = 'medium',
   language = DEFAULT_LANGUAGE,
 }) {
@@ -148,6 +151,11 @@ export async function evaluateAnswer({
   if (documentId) formData.append('document_id', documentId);
   if (Number.isInteger(chunkIndex)) formData.append('chunk_index', String(chunkIndex));
   if (sourceExcerpt) formData.append('source_excerpt', sourceExcerpt);
+  if (studySessionId) formData.append('study_session_id', studySessionId);
+  if (topicTitle) formData.append('topic_title', topicTitle);
+  if (Number.isInteger(questionPosition)) {
+    formData.append('question_position', String(questionPosition));
+  }
 
   if (audioBlob) {
     formData.append('audio', audioBlob, 'recording.webm');
@@ -191,4 +199,43 @@ export async function listMaterials(language = DEFAULT_LANGUAGE) {
   }
 
   return response.json();
+}
+
+/** Registra a configuração de uma sessão para o histórico do aluno. */
+export async function createStudySession({
+  documentId,
+  topicTitles,
+  plannedQuestionCount,
+  difficulty = 'medium',
+  feedbackMode = 'immediate',
+  language = DEFAULT_LANGUAGE,
+}) {
+  const response = await apiFetch('/api/study-sessions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      document_id: documentId,
+      topic_titles: topicTitles,
+      planned_question_count: plannedQuestionCount,
+      difficulty,
+      feedback_mode: feedbackMode,
+      language,
+    }),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, language);
+  }
+  return response.json();
+}
+
+/** Marca a sessão como concluída ao terminar a última pergunta. */
+export async function completeStudySession(studySessionId, language = DEFAULT_LANGUAGE) {
+  const response = await apiFetch(`/api/study-sessions/${studySessionId}/complete`, {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, language);
+  }
 }

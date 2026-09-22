@@ -15,6 +15,7 @@ from app.routers import (
     materials_router,
     pdf_router,
     question_router,
+    study_session_router,
     topic_router,
 )
 
@@ -52,6 +53,7 @@ app.include_router(topic_router.router, prefix="/api", tags=["Study setup"])
 app.include_router(question_router.router, prefix="/api", tags=["Questions"])
 app.include_router(evaluation_router.router, prefix="/api", tags=["Evaluation"])
 app.include_router(materials_router.router, prefix="/api", tags=["Materials"])
+app.include_router(study_session_router.router, prefix="/api", tags=["Study sessions"])
 
 
 @app.get("/health")
