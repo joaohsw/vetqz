@@ -8,6 +8,7 @@
 import { DEFAULT_LANGUAGE, formatMessage, getTranslations } from '../i18n';
 import { uploadPdfDirectly } from './pdf-storage';
 import { supabase } from './supabase';
+import { createTopicLoader } from './topic-loader';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 
@@ -83,6 +84,20 @@ export async function analyzeTopics(documentId, language = DEFAULT_LANGUAGE) {
   }
 
   return response.json();
+}
+
+const loadSavedTopics = createTopicLoader(async (documentId, language) => {
+  const response = await apiFetch(
+    `/api/documents/${encodeURIComponent(documentId)}/topics?language=${encodeURIComponent(language)}`,
+  );
+  if (!response.ok) await throwApiError(response, language);
+  return response.json();
+}, analyzeTopics);
+
+/** Restaura assuntos persistidos. Só pede análise quando o servidor informa um miss. */
+export async function restoreTopics(documentId, language = DEFAULT_LANGUAGE) {
+  const { data } = await supabase.auth.getSession();
+  return loadSavedTopics(documentId, language, data.session?.user?.id || null);
 }
 
 /**

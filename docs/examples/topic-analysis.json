@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "processing_version": 2,
+  "chunks_sha256": "substituido-pelo-sha256-dos-chunks-normalizados",
+  "is_veterinary": true,
+  "topics": [
+    {
+      "id": "topic-1",
+      "chunk_indices": [0, 2],
+      "translations": {
+        "pt-BR": {
+          "language": "pt-BR",
+          "title": "Sistema ósseo",
+          "summary": "Estrutura e função dos ossos."
+        },
+        "es-CL": {
+          "language": "es-CL",
+          "title": "Sistema óseo",
+          "summary": "Estructura y función de los huesos."
+        }
+      }
+    }
+  ]
+}

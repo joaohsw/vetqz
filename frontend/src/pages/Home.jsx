@@ -28,6 +28,7 @@ import {
   deleteDocument,
   evaluateAnswer,
   generateQuestion,
+  restoreTopics,
   uploadPdf,
 } from '../lib/api';
 import { getTranslations } from '../i18n';
@@ -206,7 +207,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
           return;
         }
 
-        const analysis = await analyzeTopics(resumeRequest.documentId, language);
+        const analysis = await restoreTopics(resumeRequest.documentId, language);
         if (cancelled) return;
 
         const allTopicIds = analysis.topics.map((topic) => topic.id);
@@ -367,7 +368,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
   };
 
   const prepareSavedSessionContinuation = async () => {
-    const analysis = await analyzeTopics(documentId, language);
+    const analysis = await restoreTopics(documentId, language);
     const requestedTopics = savedSessionContinuation?.topicTitles || [];
     const matchingTopics = analysis.topics.filter((topic) => requestedTopics.includes(topic.title));
     const restoredTopics = matchingTopics.length > 0 ? matchingTopics : analysis.topics;
