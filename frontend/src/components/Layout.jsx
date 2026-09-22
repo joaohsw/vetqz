@@ -24,7 +24,7 @@ import {
   X,
 } from 'lucide-react';
 import { formatMessage, getTranslations, LANGUAGE_OPTIONS } from '../i18n';
-import { deleteDocument, listMaterials } from '../lib/api';
+import { deleteDocument, listMaterials, listStudyHistory } from '../lib/api';
 
 export default function Layout({
   children,
@@ -300,6 +300,8 @@ function AccountSidebar({
   const [materials, setMaterials] = useState([]);
   const [materialsState, setMaterialsState] = useState('loading');
   const [deletingId, setDeletingId] = useState(null);
+  const [studyHistory, setStudyHistory] = useState([]);
+  const [historyState, setHistoryState] = useState('loading');
 
   useEffect(() => {
     let isActive = true;
@@ -316,13 +318,31 @@ function AccountSidebar({
       }
     };
 
+    const loadStudyHistory = async () => {
+      try {
+        const data = await listStudyHistory(language);
+        if (isActive) {
+          setStudyHistory(data);
+          setHistoryState('ready');
+        }
+      } catch {
+        if (isActive) setHistoryState('error');
+      }
+    };
+
     loadMaterials();
+    loadStudyHistory();
     return () => { isActive = false; };
   }, [language]);
 
   const formatExpiry = (date) => new Intl.DateTimeFormat(
     language === 'es-CL' ? 'es-CL' : 'pt-BR',
     { day: '2-digit', month: 'short' },
+  ).format(new Date(date));
+
+  const formatStudyDate = (date) => new Intl.DateTimeFormat(
+    language === 'es-CL' ? 'es-CL' : 'pt-BR',
+    { day: '2-digit', month: 'short', year: 'numeric' },
   ).format(new Date(date));
 
   const handleDeleteMaterial = async (material) => {
@@ -441,6 +461,64 @@ function AccountSidebar({
               ))}
             </ul>
           )}
+
+          <div className="mt-6 border-t border-border-subtle pt-5">
+            <div className="flex items-start gap-2.5 pb-3">
+              <BarChart3 className="w-4 h-4 mt-0.5 text-teal-400 shrink-0" aria-hidden="true" />
+              <div>
+                <h3 className="text-sm font-700 text-text-1">{copy.layout.studyHistory}</h3>
+                <p className="mt-0.5 text-xs leading-relaxed text-text-3">{copy.layout.studyHistoryDescription}</p>
+              </div>
+            </div>
+
+            {historyState === 'loading' && (
+              <div className="py-6 flex justify-center" aria-label={copy.layout.loadingStudyHistory}>
+                <span className="spinner w-4 h-4" aria-hidden="true" />
+              </div>
+            )}
+            {historyState === 'error' && (
+              <p className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-xs leading-relaxed text-danger" role="alert">
+                {copy.layout.studyHistoryError}
+              </p>
+            )}
+            {historyState === 'ready' && studyHistory.length === 0 && (
+              <p className="rounded-lg border border-dashed border-border-default p-3 text-xs leading-relaxed text-text-3">
+                {copy.layout.noStudyHistory}
+              </p>
+            )}
+            {historyState === 'ready' && studyHistory.length > 0 && (
+              <ul className="space-y-2" aria-label={copy.layout.studyHistory}>
+                {studyHistory.map((session) => (
+                  <li key={session.id} className="rounded-xl border border-border-subtle bg-surface-0 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-600 leading-snug text-text-1 break-words">{session.document_filename}</p>
+                        <p className="mt-1 text-[11px] text-text-3">{formatStudyDate(session.started_at)}</p>
+                      </div>
+                      <span className="text-xs font-700 text-teal-400 shrink-0">
+                        {session.average_score === null
+                          ? copy.layout.studyHistoryNoScore
+                          : formatMessage(copy.layout.studyHistoryScore, { score: session.average_score.toFixed(1) })}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-[11px] text-text-2">
+                      {formatMessage(copy.layout.studyHistoryProgress, {
+                        answered: session.answered_question_count,
+                        planned: session.planned_question_count,
+                      })}
+                    </p>
+                    {session.topic_titles.length > 0 && (
+                      <p className="mt-1 text-[11px] leading-relaxed text-text-3">
+                        {formatMessage(copy.layout.studyHistoryTopics, {
+                          topics: session.topic_titles.slice(0, 2).join(', '),
+                        })}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
 
         <div className="p-5 border-t border-border-subtle">

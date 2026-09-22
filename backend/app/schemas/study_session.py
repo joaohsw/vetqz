@@ -25,3 +25,16 @@ class StudySessionResponse(BaseModel):
     document_filename: str
     started_at: datetime
 
+
+class StudySessionHistoryResponse(BaseModel):
+    """Resumo de uma sessão para a área de histórico da conta."""
+
+    id: str
+    document_filename: str
+    topic_titles: list[str] = Field(default_factory=list)
+    planned_question_count: int = Field(ge=1)
+    answered_question_count: int = Field(ge=0)
+    average_score: float | None = Field(default=None, ge=0, le=10)
+    status: Literal["active", "completed"]
+    started_at: datetime
+    completed_at: datetime | None = None

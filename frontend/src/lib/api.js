@@ -239,3 +239,13 @@ export async function completeStudySession(studySessionId, language = DEFAULT_LA
     await throwApiError(response, language);
   }
 }
+
+/** Lista sessões e desempenho recente para o histórico da conta. */
+export async function listStudyHistory(language = DEFAULT_LANGUAGE) {
+  const response = await apiFetch('/api/study-sessions');
+
+  if (!response.ok) {
+    await throwApiError(response, language);
+  }
+  return response.json();
+}

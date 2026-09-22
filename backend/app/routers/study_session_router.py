@@ -5,11 +5,81 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.localization import api_message
-from app.schemas.study_session import CreateStudySessionRequest, StudySessionResponse
+from app.schemas.study_session import (
+    CreateStudySessionRequest,
+    StudySessionHistoryResponse,
+    StudySessionResponse,
+)
 from app.services.auth_service import require_current_user
 from app.services.supabase_client import get_supabase_client
 
 router = APIRouter()
+
+
+@router.get(
+    "/study-sessions",
+    response_model=list[StudySessionHistoryResponse],
+    summary="Lista o histórico de sessões de estudo",
+)
+async def list_study_sessions_endpoint(
+    user_id: str = Depends(require_current_user),
+):
+    """Agrupa respostas por sessão e entrega somente o histórico do aluno atual."""
+    supabase = get_supabase_client()
+    try:
+        sessions_result = (
+            supabase.table("study_sessions")
+            .select(
+                "id, document_filename, topic_titles, planned_question_count, "
+                "status, started_at, completed_at"
+            )
+            .eq("user_id", user_id)
+            .order("started_at", desc=True)
+            .limit(20)
+            .execute()
+        )
+        sessions = sessions_result.data or []
+        if not sessions:
+            return []
+
+        session_ids = [session["id"] for session in sessions]
+        attempts_result = (
+            supabase.table("quiz_sessions")
+            .select("study_session_id, score")
+            .eq("user_id", user_id)
+            .in_("study_session_id", session_ids)
+            .execute()
+        )
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Não foi possível carregar seu histórico de estudos.",
+        ) from error
+
+    scores_by_session: dict[str, list[float]] = {session_id: [] for session_id in session_ids}
+    for attempt in attempts_result.data or []:
+        session_id = attempt.get("study_session_id")
+        score = attempt.get("score")
+        if session_id in scores_by_session and isinstance(score, (int, float)):
+            scores_by_session[session_id].append(float(score))
+
+    return [
+        StudySessionHistoryResponse(
+            id=session["id"],
+            document_filename=session["document_filename"],
+            topic_titles=session.get("topic_titles") or [],
+            planned_question_count=session["planned_question_count"],
+            answered_question_count=len(scores_by_session[session["id"]]),
+            average_score=(
+                round(sum(scores_by_session[session["id"]]) / len(scores_by_session[session["id"]]), 1)
+                if scores_by_session[session["id"]] else None
+            ),
+            status=session["status"],
+            started_at=session["started_at"],
+            completed_at=session.get("completed_at"),
+        )
+        for session in sessions
+    ]
 
 
 @router.post(
