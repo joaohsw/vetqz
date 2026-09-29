@@ -3,6 +3,10 @@
     {
       "path": "/api/internal/cleanup-expired-materials",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/internal/keep-alive",
+      "schedule": "0 6 1,6,11,16,21,26 * *"
     }
   ]
 }

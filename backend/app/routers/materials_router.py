@@ -60,6 +60,36 @@ def require_cron_secret(authorization: str | None = Header(default=None)) -> Non
 
 
 @router.get(
+    "/internal/keep-alive",
+    summary="Ping leve no Supabase para evitar pausa por inatividade",
+    include_in_schema=False,
+)
+async def keep_alive_endpoint(
+    _: None = Depends(require_cron_secret),
+):
+    """Executa uma query trivial no Supabase para resetar o timer de inatividade.
+
+    O plano gratuito do Supabase pausa projetos após 7 dias sem atividade
+    no banco de dados. Este endpoint é chamado periodicamente via Vercel Cron
+    para manter o projeto ativo.
+    """
+    try:
+        supabase = get_supabase_client()
+        supabase.table("documents").select("id").limit(1).execute()
+        return {
+            "status": "ok",
+            "message": "Supabase keep-alive ping realizado com sucesso.",
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+    except Exception as error:
+        print(f"[vetQz] Keep-alive ping failed: {error}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Falha ao executar keep-alive no Supabase.",
+        ) from error
+
+
+@router.get(
     "/internal/cleanup-expired-materials",
     response_model=CleanupExpiredMaterialsResponse,
     summary="Remove PDFs e áudios que passaram do prazo de retenção",
