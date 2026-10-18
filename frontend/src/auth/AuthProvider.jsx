@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { getAuthRedirectUrl } from '../lib/auth-redirect';
 import { AuthContext } from './AuthContext';
 
 function assertSupabaseConfigured() {
@@ -69,7 +70,11 @@ export default function AuthProvider({ children }) {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/`,
+        emailRedirectTo: getAuthRedirectUrl({
+          siteUrl: import.meta.env.VITE_SITE_URL,
+          origin: window.location.origin,
+          isDevelopment: import.meta.env.DEV,
+        }),
       },
     });
     if (error) throw error;

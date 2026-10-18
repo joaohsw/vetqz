@@ -5,11 +5,13 @@
  * no emoji, proper disabled/loading states.
  */
 
+import { useRef } from 'react';
 import { Upload, FileText, X, AlertCircle, ArrowRight } from 'lucide-react';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { getTranslations } from '../i18n';
 
 export default function PdfUpload({ onUpload, isUploading = false, uploadProgress = 0, language }) {
+  const inputRef = useRef(null);
   const copy = getTranslations(language);
   const { file, error, isDragging, onFileChange, onDragOver, onDragLeave, onDrop, clearFile } =
     useFileUpload(language);
@@ -27,7 +29,7 @@ export default function PdfUpload({ onUpload, isUploading = false, uploadProgres
         id="pdf-drop-zone"
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
-        onDrop={onDrop}
+        onDrop={isUploading ? (event) => event.preventDefault() : onDrop}
         className={`
           card relative p-10 text-center cursor-pointer
           transition-all duration-200 ease-out
@@ -36,7 +38,9 @@ export default function PdfUpload({ onUpload, isUploading = false, uploadProgres
         `}
       >
         <input
+          ref={inputRef}
           id="pdf-file-input"
+          aria-label={copy.pdfUpload.dropIdle}
           type="file"
           accept=".pdf,application/pdf"
           onChange={onFileChange}
@@ -78,11 +82,15 @@ export default function PdfUpload({ onUpload, isUploading = false, uploadProgres
             </div>
             <button
               id="pdf-clear-btn"
+              type="button"
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 clearFile();
+                if (inputRef.current) inputRef.current.value = '';
+                inputRef.current?.focus();
               }}
-              className="p-1.5 rounded-md hover:bg-surface-3 transition-colors text-text-3 hover:text-text-2"
+              className="relative z-10 p-1.5 rounded-md hover:bg-surface-3 transition-colors text-text-3 hover:text-text-2"
               disabled={isUploading}
               aria-label={copy.pdfUpload.clearFile}
             >

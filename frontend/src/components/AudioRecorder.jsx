@@ -53,6 +53,8 @@ function ControlButton({ id, icon: Icon, iconClassName = '', label, onClick, var
 }
 
 export default function AudioRecorder({
+  savedAudioBlob = null,
+  onRecordingStatusChange,
   onRecordingComplete,
   onRecordingReset,
   transcriptValue,
@@ -63,8 +65,8 @@ export default function AudioRecorder({
   const copy = getTranslations(language);
   const {
     status,
-    audioBlob,
-    audioUrl,
+    audioBlob: recordedBlob,
+    audioUrl: recordedUrl,
     duration,
     formattedDuration,
     error,
@@ -79,6 +81,23 @@ export default function AudioRecorder({
     resumeRecording,
     resetRecording,
   } = useAudioRecorder(language);
+
+  const audioBlob = recordedBlob || savedAudioBlob;
+  const [savedAudioUrl, setSavedAudioUrl] = useState(null);
+  const audioUrl = recordedUrl || savedAudioUrl;
+  const lastTranscript = useRef(transcript);
+
+  useEffect(() => {
+    if (!savedAudioBlob) { setSavedAudioUrl(null); return undefined; }
+    const url = URL.createObjectURL(savedAudioBlob);
+    setSavedAudioUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [savedAudioBlob]);
+
+  useEffect(() => {
+    onRecordingStatusChange?.(status !== 'idle');
+    return () => onRecordingStatusChange?.(false);
+  }, [status, onRecordingStatusChange]);
 
   const [warningDismissed, setWarningDismissed] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -104,11 +123,15 @@ export default function AudioRecorder({
   }, [browserWarningMessage]);
 
   useEffect(() => {
-    if (audioBlob) onRecordingComplete?.(audioBlob);
-  }, [audioBlob, onRecordingComplete]);
+    if (recordedBlob) onRecordingComplete?.(recordedBlob);
+  }, [recordedBlob, onRecordingComplete]);
 
   useEffect(() => {
-    onTranscriptChange?.(transcript);
+    // A newly mounted recorder must not erase the draft restored by the quiz.
+    if (lastTranscript.current !== transcript) {
+      lastTranscript.current = transcript;
+      onTranscriptChange?.(transcript);
+    }
   }, [transcript, onTranscriptChange]);
 
   useEffect(() => {
@@ -250,6 +273,7 @@ export default function AudioRecorder({
             icon={RotateCcw}
             label={copy.audio.discard}
             onClick={handleReset}
+            disabled={disabled}
             variant="dangerOutline"
           />
         )}
@@ -325,6 +349,7 @@ export default function AudioRecorder({
         </div>
         <textarea
           id="audio-transcript-input"
+          disabled={disabled}
           value={transcriptValue}
           onChange={(event) => onTranscriptChange?.(event.target.value)}
           placeholder={

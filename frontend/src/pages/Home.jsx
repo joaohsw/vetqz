@@ -2,7 +2,7 @@
  * Home — orchestrates upload, study setup, question session, and review.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ArrowRight,
   BarChart3,
@@ -65,6 +65,10 @@ function createQuestionPlan(selectedTopics, questionCount) {
 
 export default function Home({ language, onProgressChange, resumeRequest, onResumeHandled }) {
   const copy = getTranslations(language);
+  const questionCache = useRef({});
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [step, setStep] = useState(STEPS.UPLOAD);
 
   // Document and generated study map
@@ -130,6 +134,25 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
     onProgressChange?.(progressKey);
   }, [onProgressChange, progressKey]);
 
+  const snapshotQuestion = (overrides = {}) => ({
+    activeTopic, question, referenceAnswer, chunkUsed, chunkIndex, sourceExcerpt,
+    retryAttemptId, studentAnswer, audioBlob, result, ...overrides,
+  });
+
+  const restoreQuestion = (entry) => {
+    setActiveTopic(entry.activeTopic);
+    setQuestion(entry.question);
+    setReferenceAnswer(entry.referenceAnswer);
+    setChunkUsed(entry.chunkUsed || '');
+    setChunkIndex(entry.chunkIndex ?? null);
+    setSourceExcerpt(entry.sourceExcerpt || '');
+    setRetryAttemptId(entry.retryAttemptId || null);
+    setStudentAnswer(entry.studentAnswer || '');
+    setAudioBlob(entry.audioBlob || null);
+    setResult(entry.result || null);
+    setStep(entry.result && feedbackMode === FEEDBACK_MODES.IMMEDIATE ? STEPS.RESULT : STEPS.ANSWER);
+  };
+
   const resetQuestionState = () => {
     setActiveTopic(null);
     setQuestion('');
@@ -157,6 +180,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
       setQuestionPlan([]);
       setCurrentQuestionIndex(0);
       setSessionResults([]);
+      questionCache.current = {};
 
       try {
         const savedAttempts = resumeRequest.savedAttempts || [];
@@ -177,6 +201,25 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
             Math.max((Number(attempt.questionPosition) || 1) - 1, 0),
             plannedQuestionCount - 1,
           );
+          const restoredResults = [];
+          for (const saved of savedAttempts) {
+            const position = Number(saved.questionPosition) - 1;
+            if (!Number.isInteger(position) || position < 0 || position >= plannedQuestionCount) continue;
+            const evaluation = Number.isFinite(saved.score) ? {
+              score: saved.score, feedback: saved.feedback || '', model_answer: saved.modelAnswer || saved.referenceAnswer,
+              source: saved.sourceExcerpt ? { excerpt: saved.sourceExcerpt, page_number: saved.sourcePage } : null,
+            } : null;
+            questionCache.current[position] = {
+              activeTopic: { id: 'saved-question', title: saved.topicTitle || '' },
+              question: saved.question, referenceAnswer: saved.referenceAnswer,
+              sourceExcerpt: saved.sourceExcerpt, retryAttemptId: saved.id,
+              studentAnswer: saved.studentAnswer || '', result: evaluation,
+            };
+          }
+          for (const [position, entry] of Object.entries(questionCache.current)) {
+            if (entry.result) restoredResults.push({ position: Number(position), topicTitle: entry.activeTopic.title, question: entry.question, result: entry.result });
+          }
+          setSessionResults(restoredResults.sort((a, b) => a.position - b.position));
           setDocumentId(resumeRequest.documentId);
           setDocumentName(resumeRequest.documentName || 'PDF');
           setTotalChunks(0);
@@ -184,7 +227,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
           setSelectedTopicIds([]);
           setQuestionCount(plannedQuestionCount);
           setDifficulty(resumeRequest.difficulty || DIFFICULTIES.MEDIUM);
-          setFeedbackMode(FEEDBACK_MODES.IMMEDIATE);
+          setFeedbackMode(resumeRequest.feedbackMode || FEEDBACK_MODES.IMMEDIATE);
           setStudySessionId(resumeRequest.studySessionId || null);
           setQuestionPlan(Array.from(
             { length: plannedQuestionCount },
@@ -202,8 +245,11 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
           setChunkUsed('');
           setChunkIndex(null);
           setSourceExcerpt(attempt.sourceExcerpt || '');
-          setRetryAttemptId(resumeRequest.retryAttemptId || null);
-          setStep(STEPS.ANSWER);
+          const cached = questionCache.current[savedQuestionIndex];
+          setRetryAttemptId(cached?.retryAttemptId || resumeRequest.retryAttemptId || attempt.id || null);
+          setStudentAnswer(cached?.studentAnswer || '');
+          setResult(cached?.result || null);
+          setStep(cached?.result && resumeRequest.feedbackMode !== FEEDBACK_MODES.FINAL ? STEPS.RESULT : STEPS.ANSWER);
           return;
         }
 
@@ -251,6 +297,12 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
   }, [language, onResumeHandled, resumeRequest]);
 
   const loadQuestion = async (position, plan = questionPlan, topicList = topics) => {
+    if (questionCache.current[position]) {
+      setCurrentQuestionIndex(position);
+      setError(null);
+      restoreQuestion(questionCache.current[position]);
+      return;
+    }
     const topicId = plan[position];
     const topic = topicList.find((item) => item.id === topicId);
     if (!topic) {
@@ -280,7 +332,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
       setStep(STEPS.ANSWER);
     } catch (requestError) {
       setError(requestError.message);
-      setStep(STEPS.SETUP);
+      setStep(STEPS.QUESTION);
     } finally {
       setIsGenerating(false);
     }
@@ -333,6 +385,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
   };
 
   const handleStartSession = async () => {
+    if (isStarting) return;
     const selectedTopics = topics.filter((topic) => selectedTopicIds.includes(topic.id));
     if (!selectedTopics.length || selectedTopics.length > MAX_SESSION_QUESTIONS) return;
 
@@ -340,6 +393,8 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
       selectedTopics.length,
       Math.min(questionCount, MAX_SESSION_QUESTIONS),
     );
+    setIsStarting(true);
+    setError(null);
     try {
       const studySession = await createStudySession({
         documentId,
@@ -350,6 +405,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
         language,
       });
       const plan = createQuestionPlan(selectedTopics, totalQuestions);
+      questionCache.current = {};
       setStudySessionId(studySession.id);
       setQuestionPlan(plan);
       setSessionResults([]);
@@ -357,6 +413,8 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
       await loadQuestion(0, plan);
     } catch (requestError) {
       setError(requestError.message);
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -388,65 +446,66 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
     };
   };
 
-  const advanceSession = async () => {
-    const nextIndex = currentQuestionIndex + 1;
-    if (nextIndex >= questionPlan.length) {
-      if (studySessionId) {
-        try {
-          await completeStudySession(studySessionId, language);
-        } catch (requestError) {
-          setError(requestError.message);
-        }
-      }
-      setStep(STEPS.SUMMARY);
-      return;
-    }
+  const busy = isGenerating || isEvaluating || isCompleting || isStarting || isRecording;
+  const allAnswered = questionPlan.length > 0 && questionPlan.every(
+    (_, position) => sessionResults.some((attempt) => attempt.position === position),
+  );
 
+  const finishSession = async () => {
+    if (!allAnswered || busy) return;
+    setIsCompleting(true);
+    setError(null);
+    try {
+      if (studySessionId) await completeStudySession(studySessionId, language);
+      setStep(STEPS.SUMMARY);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setIsCompleting(false);
+    }
+  };
+
+  const navigateToQuestion = async (position, saveCurrent = true) => {
+    if (saveCurrent && busy) return;
+    if (saveCurrent && question) questionCache.current[currentQuestionIndex] = snapshotQuestion();
     let plan = questionPlan;
     let topicList = topics;
-    if (savedSessionContinuation) {
-      const savedQuestion = savedSessionContinuation.savedAttempts?.find(
-        (attempt) => Number(attempt.questionPosition) === nextIndex + 1,
-      );
-      if (savedQuestion) {
-        resetQuestionState();
-        setCurrentQuestionIndex(nextIndex);
-        setActiveTopic({ id: 'saved-question', title: savedQuestion.topicTitle || '' });
-        setQuestion(savedQuestion.question);
-        setReferenceAnswer(savedQuestion.referenceAnswer);
-        setChunkUsed('');
-        setChunkIndex(null);
-        setSourceExcerpt(savedQuestion.sourceExcerpt || '');
-        setRetryAttemptId(savedQuestion.id);
-        setStep(STEPS.ANSWER);
-        return;
-      }
-
+    if (!questionCache.current[position] && savedSessionContinuation) {
       setIsGenerating(true);
       setError(null);
-      setQuestion('');
-      setStep(STEPS.QUESTION);
       try {
-        const restoredSession = await prepareSavedSessionContinuation();
-        plan = restoredSession.plan;
-        topicList = restoredSession.topics;
-        setTopics(restoredSession.topics);
-        setSelectedTopicIds(restoredSession.topics.map((topic) => topic.id));
-        setQuestionCount(restoredSession.totalQuestions);
-        setQuestionPlan(restoredSession.plan);
+        const restored = await prepareSavedSessionContinuation();
+        plan = restored.plan;
+        topicList = restored.topics;
+        setTopics(topicList);
+        setSelectedTopicIds(topicList.map((topic) => topic.id));
+        setQuestionCount(restored.totalQuestions);
+        setQuestionPlan(plan);
         setSavedSessionContinuation(null);
       } catch (requestError) {
         setError(requestError.message);
-        setStep(STEPS.RESULT);
         setIsGenerating(false);
         return;
       }
     }
-    await loadQuestion(nextIndex, plan, topicList);
+    await loadQuestion(position, plan, topicList);
+  };
+
+  const advanceSession = async (results = sessionResults, overrides = {}) => {
+    questionCache.current[currentQuestionIndex] = snapshotQuestion(overrides);
+    const pending = questionPlan.map((_, index) => index).filter(
+      (position) => !results.some((attempt) => attempt.position === position),
+    );
+    const nextIndex = pending.find((position) => position > currentQuestionIndex) ?? pending[0];
+    if (nextIndex === undefined) {
+      setStep(feedbackMode === FEEDBACK_MODES.IMMEDIATE ? STEPS.RESULT : STEPS.ANSWER);
+      return;
+    }
+    await navigateToQuestion(nextIndex, false);
   };
 
   const handleSubmitAnswer = async () => {
-    if (!studentAnswer.trim()) return;
+    if (!studentAnswer.trim() || busy || result) return;
 
     setIsEvaluating(true);
     setError(null);
@@ -467,17 +526,23 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
         language,
       });
       const attempt = {
+        position: currentQuestionIndex,
         topicTitle: activeTopic?.title || '',
         question,
         result: evaluation,
       };
-      setSessionResults((previous) => [...previous, attempt]);
+      const results = [...sessionResults.filter((item) => item.position !== currentQuestionIndex), attempt]
+        .sort((a, b) => a.position - b.position);
+      const attemptId = evaluation.attempt_id || retryAttemptId;
+      setSessionResults(results);
+      setRetryAttemptId(attemptId);
       setResult(evaluation);
+      questionCache.current[currentQuestionIndex] = snapshotQuestion({ result: evaluation, retryAttemptId: attemptId });
 
       if (feedbackMode === FEEDBACK_MODES.IMMEDIATE) {
         setStep(STEPS.RESULT);
       } else {
-        await advanceSession();
+        await advanceSession(results, { result: evaluation, retryAttemptId: attemptId });
       }
     } catch (requestError) {
       setError(requestError.message);
@@ -487,6 +552,8 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
   };
 
   const handleConfigureAgain = () => {
+    if (busy) return;
+    questionCache.current = {};
     resetQuestionState();
     setStudySessionId(null);
     setQuestionPlan([]);
@@ -498,6 +565,8 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
   };
 
   const handleReset = () => {
+    if (busy) return;
+    questionCache.current = {};
     resetQuestionState();
     setDocumentId(null);
     setDocumentName('');
@@ -514,30 +583,23 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
   };
 
   const handleRetryQuestion = () => {
-    setStudentAnswer('');
-    setAudioBlob(null);
+    if (busy) return;
+    setSessionResults((previous) => previous.filter((item) => item.position !== currentQuestionIndex));
     setResult(null);
     setStep(STEPS.ANSWER);
   };
 
   const handleAnotherQuestionSameTopic = async () => {
-    if (!activeTopic) return;
-    if (savedSessionContinuation) {
+    if (busy || !activeTopic) return;
+    // Never replace a question the student has already visited or drafted.
+    const nextPosition = questionPlan.findIndex((_, index) => index !== currentQuestionIndex
+      && !questionCache.current[index] && !sessionResults.some((item) => item.position === index));
+    if (nextPosition < 0 || savedSessionContinuation || !topics.some((topic) => topic.id === activeTopic.id)) {
       await advanceSession();
       return;
     }
-    setRetryAttemptId(null);
-    const nextPosition = currentQuestionIndex + 1;
-    if (nextPosition >= questionPlan.length) {
-      await advanceSession();
-      return;
-    }
-
-    // Pratica o mesmo assunto na próxima posição já existente, sem adicionar
-    // questões além da quantidade escolhida na configuração da sessão.
-    const adjustedPlan = questionPlan.map((topicId, index) => (
-      index === nextPosition ? activeTopic.id : topicId
-    ));
+    questionCache.current[currentQuestionIndex] = snapshotQuestion();
+    const adjustedPlan = questionPlan.map((topicId, index) => index === nextPosition ? activeTopic.id : topicId);
     setQuestionPlan(adjustedPlan);
     await loadQuestion(nextPosition, adjustedPlan);
   };
@@ -611,6 +673,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
             id="reset-btn"
             type="button"
             onClick={handleReset}
+            disabled={busy}
             className="text-xs text-text-3 hover:text-text-2 transition-colors flex items-center gap-1 shrink-0 ml-2"
           >
             <RotateCcw className="w-3 h-3" />
@@ -652,6 +715,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
       )}
 
       {step === STEPS.SETUP && (
+        <fieldset disabled={isStarting}>
         <StudySetup
           topics={topics}
           selectedTopicIds={selectedTopicIds}
@@ -666,9 +730,33 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
           onStart={handleStartSession}
           language={language}
         />
+        </fieldset>
       )}
 
-      {(step === STEPS.QUESTION || isGenerating) && !question && (
+      {[STEPS.QUESTION, STEPS.ANSWER, STEPS.RESULT].includes(step) && questionPlan.length > 0 && (
+        <section className="card p-4 space-y-3">
+          <p className="text-sm text-text-2">{copy.home.navigationHint}</p>
+          <nav className="flex flex-wrap gap-2" aria-label={copy.home.questionNavigation}>
+            {questionPlan.map((_, index) => {
+              const answered = sessionResults.some((attempt) => attempt.position === index);
+              return <button key={index} type="button" disabled={busy}
+                aria-current={index === currentQuestionIndex ? 'step' : undefined}
+                aria-label={copy.home.questionNumber.replace('{number}', index + 1) + ' — ' + (answered ? copy.home.answered : copy.home.pending)}
+                onClick={() => navigateToQuestion(index)}
+                className={['rounded-lg border px-3 py-2 text-sm disabled:opacity-50', index === currentQuestionIndex ? 'border-teal-400 ring-2 ring-teal-400/30' : 'border-border-subtle', answered ? 'bg-teal-500/15 text-teal-400' : 'text-text-2'].join(' ')}>
+                {index + 1}{answered ? ' ✓' : ''}
+              </button>;
+            })}
+          </nav>
+          {allAnswered && <button id="finish-session-btn" type="button" disabled={busy} onClick={finishSession} className="btn-primary w-full">
+            {isCompleting && <span className="spinner" />}{copy.home.finishSession}<BarChart3 className="w-4 h-4" />
+          </button>}
+          {isRecording && <p role="status" className="text-xs text-text-3">{copy.home.stopBeforeNavigation}</p>}
+          {step === STEPS.QUESTION && !isGenerating && error && <button type="button" className="btn-secondary w-full" onClick={() => navigateToQuestion(currentQuestionIndex)}>{copy.home.retryLoad}</button>}
+        </section>
+      )}
+
+      {(step === STEPS.QUESTION || isGenerating) && !question && !error && (
         <QuestionCard question="" isLoading language={language} />
       )}
 
@@ -689,6 +777,9 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
 
           <div className="space-y-4">
             <AudioRecorder
+              key={currentQuestionIndex}
+              savedAudioBlob={audioBlob}
+              onRecordingStatusChange={setIsRecording}
               onRecordingComplete={setAudioBlob}
               onRecordingReset={() => {
                 setAudioBlob(null);
@@ -696,18 +787,19 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
               }}
               transcriptValue={studentAnswer}
               onTranscriptChange={setStudentAnswer}
-              disabled={isEvaluating}
+              disabled={isEvaluating || Boolean(result)}
               language={language}
             />
             <button
               id="submit-audio-answer-btn"
               type="button"
               onClick={handleSubmitAnswer}
-              disabled={!studentAnswer.trim() || isEvaluating}
+              disabled={!studentAnswer.trim() || busy || Boolean(result)}
               className="btn-primary w-full"
             >
               {isEvaluating ? <><span className="spinner" />{copy.home.evaluating}</> : <>{copy.home.submitVoiceAnswer}<Send className="w-4 h-4" /></>}
             </button>
+            {result && <button type="button" onClick={handleRetryQuestion} disabled={busy} className="btn-secondary w-full">{copy.home.editAnswer}</button>}
           </div>
         </div>
       )}
@@ -715,17 +807,19 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
       {step === STEPS.RESULT && result && (
         <div className="space-y-4">
           <ResultCard
+            key={currentQuestionIndex}
+            disabled={busy}
             score={result.score}
             feedback={result.feedback}
             modelAnswer={result.model_answer}
             source={result.source}
             onRetryQuestion={handleRetryQuestion}
             onAnotherQuestionSameTopic={handleAnotherQuestionSameTopic}
-            onContinue={advanceSession}
-            isLastQuestion={currentQuestionIndex + 1 >= questionPlan.length}
+            onContinue={allAnswered ? finishSession : () => advanceSession()}
+            isLastQuestion={allAnswered}
             language={language}
           />
-          <button id="configure-session-btn" type="button" onClick={handleConfigureAgain} className="btn-secondary w-full">
+          <button id="configure-session-btn" type="button" onClick={handleConfigureAgain} disabled={busy} className="btn-secondary w-full">
             <SlidersIcon />
             {copy.home.configureSession}
           </button>
@@ -749,7 +843,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
                 <summary className="p-4 cursor-pointer list-none flex items-center justify-between gap-3">
                   <span className="min-w-0">
                     <span className="block text-sm font-600 text-text-1 truncate">
-                      {copy.home.questionNumber.replace('{number}', index + 1)} · {attempt.topicTitle}
+                      {copy.home.questionNumber.replace('{number}', attempt.position + 1)} · {attempt.topicTitle}
                     </span>
                     <span className="block text-xs text-text-3 mt-1 truncate">{attempt.question}</span>
                   </span>

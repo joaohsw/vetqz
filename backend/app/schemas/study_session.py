@@ -32,6 +32,10 @@ class StudySessionAttemptResponse(BaseModel):
     id: str
     question: str
     reference_answer: str
+    student_answer: str = ""
+    score: float | None = Field(default=None, ge=0, le=10)
+    feedback: str = ""
+    model_answer: str = ""
     topic_title: str | None = None
     question_position: int | None = Field(default=None, ge=1)
     source_excerpt: str | None = None

@@ -12,7 +12,7 @@ Uma sessão anônima possui `user.id` e access token próprios, mas não pode se
 
 1. Em **Authentication > Providers**, mantenha o provedor de e-mail e a criação de novos usuários habilitados.
 2. Defina se o projeto exigirá confirmação de e-mail. Quando habilitada, o usuário recebe uma mensagem e só entra depois de confirmar o cadastro.
-3. Em **Authentication > URL Configuration**, configure a Site URL de produção e adicione `http://localhost:5173/**` às Redirect URLs para desenvolvimento.
+3. Em **Authentication > URL Configuration**, defina **Site URL** como `https://vetqz.vercel.app/` e adicione `https://vetqz.vercel.app/` às **Redirect URLs**. Em projetos usados também para desenvolvimento, mantenha `http://localhost:5173/**` apenas como URL adicional, nunca como Site URL de produção.
 4. Configure SMTP próprio antes da produção. O serviço de e-mail padrão do Supabase é indicado apenas para testes e possui limites baixos.
 5. Em **Authentication > Providers > Anonymous Sign-Ins**, habilite entradas anônimas.
 6. Configure CAPTCHA ou Cloudflare Turnstile para cadastro e acesso anônimo, e revise os rate limits antes de disponibilizar o sistema publicamente.
@@ -20,14 +20,33 @@ Uma sessão anônima possui `user.id` e access token próprios, mas não pode se
 
 O cliente Supabase gerencia a persistência da sessão. Tema e idioma continuam em chaves próprias no `localStorage` e não são removidos no logout.
 
-## Limite de segurança atual
+## Redirecionamento de confirmação
 
-O gate de autenticação atual controla a entrada na interface e envia o access token vigente no header `Authorization` das chamadas ao FastAPI. O backend, porém, ainda usa um cliente com `service_role` e não valida esse JWT. Portanto, a API ainda não deve ser considerada protegida por usuário.
+Defina `VITE_SITE_URL=https://vetqz.vercel.app` no frontend e reconstrua o bundle.
+O cadastro envia essa origem em `emailRedirectTo`. Sem a variável, builds de
+produção usam o domínio canônico acima; em desenvolvimento, usam a origem local.
+URLs locais, inválidas ou sem HTTPS não são aceitas como destino de produção.
 
-Antes de armazenar dados pessoais ou disponibilizar histórico por conta, é obrigatório:
+Isso **não altera o painel do Supabase**: uma URL fora da allowlist pode cair na
+Site URL configurada pelo provedor. Definir `SITE_URL` no `.env` do FastAPI não
+configura o Supabase hospedado. As chaves `anon` e `service_role` não substituem
+acesso ao painel ou um token da Management API para essa alteração.
 
-1. validar o JWT do Supabase em todas as rotas protegidas do FastAPI;
-2. adicionar `user_id` a `documents` e `quiz_sessions` por migrations versionadas;
-3. garantir que buscas por `document_id` também verifiquem o proprietário;
-4. criar e testar policies RLS para usuários permanentes e anônimos;
-5. reduzir o uso de `service_role` ao mínimo necessário.
+No template de confirmação, mantenha o link de verificação `{{ .ConfirmationURL }}`;
+remova URLs localhost fixas. Templates personalizados devem respeitar
+`{{ .RedirectTo }}` após validar o token. Valide com um novo cadastro e um novo
+e-mail após alterar o painel; mensagens já emitidas não são reescritas.
+
+Referência: https://supabase.com/docs/guides/auth/redirect-urls
+
+## Autorização da API
+
+O frontend envia o access token no header `Authorization`. As rotas de estudo
+usam `require_current_user`, que valida a sessão no Supabase, e filtram documentos,
+sessões e tentativas por `user_id`. O backend usa `service_role`, portanto esses
+filtros de propriedade devem permanecer em todas as operações. Essa chave fica
+exclusivamente no ambiente do backend.
+
+O upload direto usa a sessão do aluno e as policies de `upload_intents`/Storage
+da migration de retenção. A migration precisa estar aplicada também para
+convidados, que recebem o papel `authenticated` com identidade própria.

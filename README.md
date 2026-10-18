@@ -47,7 +47,30 @@ registros existentes.
 
 ## Processamento de PDFs e cache de assuntos
 
-O limite padrão continua em **25 MB** no frontend e no backend
+### Limite de 50 MB e navegação livre
+
+Frontend e backend aceitam até **50 MiB (52.428.800 bytes)**, apresentados como
+50 MB na interface. Configure `MAX_PDF_SIZE_MB=50` também no ambiente publicado:
+uma variável já definida como 15 ou 25 continua prevalecendo sobre o padrão do código.
+Aplique `supabase/migrations/20261013_materials_50mb.sql` para atualizar o bucket
+`materials` existente e verifique que o limite global do Storage permite 50 MiB.
+O bucket permanece privado. Arquivos acima de 6 MiB usam TUS, em partes de 6 MiB;
+o PDF não passa pelo corpo da requisição da Vercel. A extração exige texto no PDF;
+esta alteração não acrescenta OCR para atlas digitalizados apenas como imagem.
+
+O índice permite abrir as perguntas em qualquer ordem. Perguntas geradas,
+rascunhos e áudios ficam em memória durante a sessão; respostas enviadas são
+recuperadas pelo histórico. Recarregar a página descarta rascunhos não enviados.
+O resumo é liberado após responder todas as posições, independentemente da ordem
+ou da nota. Editar/refazer uma resposta atualiza a tentativa anterior, e uma falha
+ao salvar ou finalizar permanece visível para nova tentativa. O modo de feedback
+final mantém a correção oculta até a finalização explícita.
+
+Os testes de interação ficam em `frontend/tests/ui`: execute `npm run test:ui`,
+além dos comandos de validação abaixo. Eles simulam as APIs sem consumir Gemini.
+Consulte `docs/authentication.md` para a configuração externa de redirecionamento.
+
+O limite padrão continua em **50 MB** no frontend e no backend
 (`MAX_PDF_SIZE_MB` permanece configurável). O PDF vai somente para o Storage
 privado; o Gemini recebe texto. Nenhum modelo, plano pago ou serviço novo foi
 adicionado. A geração de perguntas continua recebendo apenas o chunk escolhido,

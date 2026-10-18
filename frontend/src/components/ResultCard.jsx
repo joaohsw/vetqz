@@ -97,10 +97,19 @@ function SourceCard({ source, copy }) {
   );
 }
 
-function RecommendedAction({ score, copy, onRetryQuestion, onAnotherQuestionSameTopic, onContinue, isLastQuestion }) {
+function RecommendedAction({ disabled, score, copy, onRetryQuestion, onAnotherQuestionSameTopic, onContinue, isLastQuestion }) {
   let content;
   let secondaryAction = null;
-  if (score < 6) {
+  if (isLastQuestion) {
+    content = {
+      title: copy.finishSession,
+      description: copy.recommendations.advance.lastDescription,
+      label: copy.finishSession,
+      icon: ArrowRight,
+      onClick: onContinue,
+    };
+    secondaryAction = { label: copy.recommendations.review.action, onClick: onRetryQuestion };
+  } else if (score < 6) {
     content = {
       title: copy.recommendations.review.title,
       description: copy.recommendations.review.description,
@@ -144,7 +153,7 @@ function RecommendedAction({ score, copy, onRetryQuestion, onAnotherQuestionSame
     >
       <p className="text-sm font-600 text-text-1">{content.title}</p>
       <p className="text-sm text-text-3 leading-relaxed mt-1">{content.description}</p>
-      <button type="button" id="recommended-action-btn" onClick={content.onClick} className="btn-primary w-full mt-4">
+      <button type="button" id="recommended-action-btn" disabled={disabled} onClick={content.onClick} className="btn-primary w-full mt-4">
         <Icon className="w-4 h-4" />
         {content.label}
       </button>
@@ -152,6 +161,7 @@ function RecommendedAction({ score, copy, onRetryQuestion, onAnotherQuestionSame
         <button
           type="button"
           id="continue-after-review-btn"
+          disabled={disabled}
           onClick={secondaryAction.onClick}
           className="btn-secondary w-full mt-2"
         >
@@ -164,6 +174,7 @@ function RecommendedAction({ score, copy, onRetryQuestion, onAnotherQuestionSame
 }
 
 export default function ResultCard({
+  disabled = false,
   score,
   feedback,
   modelAnswer,
@@ -174,7 +185,8 @@ export default function ResultCard({
   isLastQuestion,
   language,
 }) {
-  const copy = getTranslations(language).result;
+  const translations = getTranslations(language);
+  const copy = { ...translations.result, finishSession: translations.home.finishSession };
   if (score === null || score === undefined) return null;
 
   return (
@@ -214,6 +226,7 @@ export default function ResultCard({
       <SourceCard source={source} copy={copy} />
 
       <RecommendedAction
+        disabled={disabled}
         score={score}
         copy={copy}
         onRetryQuestion={onRetryQuestion}

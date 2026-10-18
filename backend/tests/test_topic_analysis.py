@@ -228,7 +228,7 @@ class TopicEndpointTests(unittest.TestCase):
         self.assertEqual(response.json()["source"], {"page_number": 7, "excerpt": "A tíbia pertence ao membro pélvico."})
         self.assertNotIn("O úmero articula-se", self.model.call_args.kwargs["contents"])
         self.assertIn("A tíbia pertence", self.model.call_args.kwargs["contents"])
-        self.assertEqual(type(settings).model_fields["max_pdf_size_mb"].default, 25)
+        self.assertEqual(type(settings).model_fields["max_pdf_size_mb"].default, 50)
 
     def test_aliases_and_filtered_contents_indices_are_preserved(self):
         self.db.document["chunks"] = [

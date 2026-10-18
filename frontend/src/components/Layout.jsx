@@ -552,6 +552,11 @@ function AccountSidebar({
                             topicTitle: attempt.topic_title,
                             questionPosition: attempt.question_position,
                             sourceExcerpt: attempt.source_excerpt,
+                            sourcePage: attempt.source_page,
+                            studentAnswer: attempt.student_answer,
+                            score: attempt.score,
+                            feedback: attempt.feedback,
+                            modelAnswer: attempt.model_answer,
                           })),
                           lastAttempt: session.status === 'active' && session.last_attempt
                             ? {

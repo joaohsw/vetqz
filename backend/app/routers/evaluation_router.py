@@ -258,7 +258,7 @@ async def evaluate_answer_endpoint(
             "source_page": source["page_number"] if source else None,
         }
         if retry_attempt_id:
-            (
+            saved_attempt = (
                 supabase.table("quiz_sessions")
                 .update(attempt_data)
                 .eq("id", retry_attempt_id)
@@ -272,17 +272,23 @@ async def evaluate_answer_endpoint(
                 except Exception:
                     pass
         else:
-            supabase.table("quiz_sessions").insert(attempt_data).execute()
+            saved_attempt = supabase.table("quiz_sessions").insert(attempt_data).execute()
+        if not saved_attempt.data:
+            raise RuntimeError("Attempt was not saved")
+        attempt_id = saved_attempt.data[0]["id"]
     except Exception as e:
         if audio_path:
             try:
                 delete_audio(audio_path)
             except Exception:
                 pass
-        # Não bloqueia o retorno se a persistência falhar
-        print(f"⚠️ Erro ao salvar sessão no banco: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Não foi possível salvar a resposta. Tente novamente.",
+        ) from e
 
     return EvaluateAnswerResponse(
+        attempt_id=attempt_id,
         score=gemini_result.get("score", 0),
         feedback=gemini_result.get("feedback", ""),
         strengths=gemini_result.get("strengths", []),

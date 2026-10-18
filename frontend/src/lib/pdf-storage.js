@@ -26,6 +26,11 @@ async function uploadWithTus(file, objectPath, onProgress) {
   return new Promise((resolve, reject) => {
     const upload = new tus.Upload(file, {
       endpoint: getStorageEndpoint(),
+      // A new intent owns a new object. Never resume another user's/path's upload
+      // merely because the same local file was selected again.
+      fingerprint: async () => JSON.stringify([
+        import.meta.env.VITE_SUPABASE_URL, objectPath, file.size, file.lastModified,
+      ]),
       retryDelays: [0, 3000, 5000, 10000, 20000],
       headers: {
         authorization: `Bearer ${data.session.access_token}`,

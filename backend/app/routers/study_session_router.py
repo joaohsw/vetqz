@@ -48,7 +48,7 @@ async def list_study_sessions_endpoint(
             supabase.table("quiz_sessions")
             .select(
                 "id, study_session_id, score, question, reference_answer, topic_title, "
-                "question_position, source_excerpt, source_page, created_at"
+                "question_position, source_excerpt, source_page, created_at, student_answer, feedback, model_answer"
             )
             .eq("user_id", user_id)
             .in_("study_session_id", session_ids)
@@ -92,6 +92,10 @@ async def list_study_sessions_endpoint(
             ),
             attempts=[
                 StudySessionAttemptResponse(
+                    student_answer=attempt.get("student_answer") or "",
+                    score=attempt.get("score"),
+                    feedback=attempt.get("feedback") or "",
+                    model_answer=attempt.get("model_answer") or "",
                     id=attempt["id"],
                     question=attempt["question"],
                     reference_answer=attempt["reference_answer"],

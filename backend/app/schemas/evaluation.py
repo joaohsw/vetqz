@@ -26,6 +26,7 @@ class EvaluateAnswerRequest(BaseModel):
 
 class EvaluateAnswerResponse(BaseModel):
     """Response de POST /api/evaluate-answer."""
+    attempt_id: str | None = None
     score: float = Field(
         ...,
         ge=0.0,
