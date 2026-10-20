@@ -1,11 +1,29 @@
 # ========================
-# Ambiente e Credenciais
+# Ambiente, Credenciais e Segredos
 # ========================
 .env
-.env.local
-.env.production
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+credentials.json
+client_secrets*.json
+id_rsa*
+*.pub
 PROJECT_CONTEXT.md
 SKILL.md
+
+# ========================
+# Supabase CLI / Estado Local
+# ========================
+supabase/.temp/
+supabase/.branches/
+.supabase/
+
 
 # ========================
 # Python / Backend
