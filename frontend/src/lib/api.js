@@ -266,3 +266,10 @@ export async function listStudyHistory(language = DEFAULT_LANGUAGE) {
   }
   return response.json();
 }
+
+/** Canonical persisted metrics, also used by the account history. */
+export async function getStudySession(studySessionId, language = DEFAULT_LANGUAGE) {
+  const response = await apiFetch(`/api/study-sessions/${studySessionId}`);
+  if (!response.ok) await throwApiError(response, language);
+  return response.json();
+}

@@ -55,6 +55,8 @@ class StudySessionHistoryResponse(BaseModel):
     answered_question_count: int = Field(ge=0)
     average_score: float | None = Field(default=None, ge=0, le=10)
     attempts: list[StudySessionAttemptResponse] = Field(default_factory=list)
+    legacy_unplaced_attempts: list[StudySessionAttemptResponse] = Field(default_factory=list)
+    superseded_attempt_count: int = Field(default=0, ge=0)
     last_attempt: StudySessionAttemptResponse | None = None
     status: Literal["active", "completed"]
     started_at: datetime

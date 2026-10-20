@@ -24,6 +24,7 @@ import {
   X,
 } from 'lucide-react';
 import { formatMessage, getTranslations, LANGUAGE_OPTIONS } from '../i18n';
+import { formatScore, legacyScoreNotice } from '../lib/study-score';
 import { deleteDocument, listMaterials, listStudyHistory } from '../lib/api';
 
 export default function Layout({
@@ -517,7 +518,7 @@ function AccountSidebar({
                       <span className="text-xs font-700 text-teal-400 shrink-0">
                         {session.average_score === null
                           ? copy.layout.studyHistoryNoScore
-                          : formatMessage(copy.layout.studyHistoryScore, { score: session.average_score.toFixed(1) })}
+                          : formatMessage(copy.layout.studyHistoryScore, { score: formatScore(session.average_score, language) })}
                       </span>
                     </div>
                     <p className="mt-2 text-[11px] text-text-2">
@@ -526,6 +527,7 @@ function AccountSidebar({
                         planned: session.planned_question_count,
                       })}
                     </p>
+                    {legacyScoreNotice(session, language) && <p className="mt-2 text-xs text-text-3" role="status">{legacyScoreNotice(session, language)}</p>}
                     {session.topic_titles.length > 0 && (
                       <p className="mt-1 text-[11px] leading-relaxed text-text-3">
                         {formatMessage(copy.layout.studyHistoryTopics, {

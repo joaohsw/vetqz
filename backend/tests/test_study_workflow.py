@@ -31,12 +31,14 @@ class Query:
     def __init__(self, db, name):
         self.db, self.name = db, name
         self.filters, self.values, self.inserted = {}, None, None
+        self.orders, self.bounds, self.max_rows = [], None, None
 
     def select(self, *_): return self
     def eq(self, key, value): self.filters[key] = value; return self
     def in_(self, key, values): self.filters[key] = values; return self
-    def order(self, *_, **__): return self
-    def limit(self, *_): return self
+    def order(self, key, desc=False): self.orders.append((key, desc)); return self
+    def limit(self, count): self.max_rows = count; return self
+    def range(self, start, end): self.bounds = (start, end); return self
     def insert(self, values): self.inserted = values; return self
     def update(self, values): self.values = values; return self
 
@@ -52,6 +54,13 @@ class Query:
             for key, value in self.filters.items())]
         if self.values is not None:
             for row in found: row.update(self.values)
+        for key, desc in reversed(self.orders):
+            found.sort(key=lambda row: row.get(key) or '', reverse=desc)
+        if self.bounds:
+            start, end = self.bounds
+            found = found[start:end+1]
+        if self.max_rows is not None:
+            found = found[:self.max_rows]
         return SimpleNamespace(data=copy.deepcopy(found))
 
 
@@ -90,6 +99,70 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(history['attempts'][1]['student_answer'], 'Resposta')
         self.assertEqual(history['attempts'][1]['feedback'], 'Feedback')
         self.assertEqual(history['attempts'][1]['score'], 7)
+
+    def test_metrics_contract_and_replacement(self):
+        import json
+        from pathlib import Path
+        fixture = json.loads((Path(__file__).parents[2] / 'docs/examples/study-metrics-contract.json').read_text())
+        for attempt in fixture['attempts']:
+            self.db.rows['quiz_sessions'].append({**attempt, 'user_id':'owner', 'study_session_id':'session'})
+        history = self.client.get('/api/study-sessions').json()[0]
+        detail = self.client.get('/api/study-sessions/session').json()
+        self.assertEqual(history, detail)
+        for key in ['average_score', 'answered_question_count']:
+            self.assertEqual(detail[key], fixture[key])
+        self.model.return_value = {'score':9, 'feedback':'Revised', 'model_answer':'Modelo'}
+        response = self.client.post('/api/evaluate-answer', data={
+            'question':'Q1', 'reference_answer':'Modelo', 'student_answer':'Revised',
+            'study_session_id':'session', 'question_position':1, 'retry_attempt_id':'a1'})
+        self.assertEqual(response.status_code, 200, response.text)
+        revised = self.client.get('/api/study-sessions/session').json()
+        self.assertEqual(revised['average_score'], fixture['revised']['average_score'])
+        self.assertEqual(revised['attempts'][0]['id'], fixture['revised']['replaced_attempt_id'])
+        self.assertEqual(revised['attempts'][0]['score'], fixture['revised']['score'])
+        self.assertEqual(revised['attempts'][0]['question_position'], 1)
+        self.assertEqual(revised['answered_question_count'], fixture['revised']['answered_question_count'])
+        self.assertEqual(len(self.db.rows['quiz_sessions']), 3)
+
+    def test_empty_zero_partial_rounding_and_legacy(self):
+        self.assertIsNone(self.client.get('/api/study-sessions/session').json()['average_score'])
+        self.model.return_value['score'] = 0
+        self.answer(1)
+        partial = self.client.get('/api/study-sessions/session').json()
+        self.assertEqual((partial['average_score'], partial['answered_question_count']), (0,1))
+        row = self.db.rows['quiz_sessions'][0]
+        row.update(created_at='2026-01-01T00:00:00Z', updated_at='2026-10-20T00:00:00Z', score=2.25)
+        self.db.rows['quiz_sessions'].extend([
+            {**row, 'id':'old-duplicate', 'updated_at':None, 'created_at':'2026-02-01T00:00:00Z', 'score':10},
+            {**row, 'id':'legacy', 'question_position':None, 'score':10},
+            {**row, 'id':'foreign', 'user_id':'another-user', 'score':10},
+            {**row, 'id':'other-session', 'study_session_id':'other-session', 'score':10},
+        ])
+        detail = self.client.get('/api/study-sessions/session').json()
+        self.assertEqual((detail['average_score'], detail['answered_question_count']), (2.3,1))
+        self.assertEqual(detail['superseded_attempt_count'], 1)
+        self.assertEqual(detail['legacy_unplaced_attempts'][0]['id'], 'legacy')
+        self.assertEqual(detail['last_attempt']['id'], row['id'])
+        self.assertEqual(self.client.get('/api/study-sessions/other-session').status_code,404)
+
+    def test_pagination_reads_all_rows_and_uses_deterministic_legacy_tie_break(self):
+        for index in range(405):
+            self.db.rows['quiz_sessions'].append({'id':f'{index:04}', 'user_id':'owner',
+                'study_session_id':'session', 'question_position':1, 'score':0 if index < 404 else 10,
+                'question':'Q', 'reference_answer':'A'})
+        detail = self.client.get('/api/study-sessions/session').json()
+        self.assertEqual(detail['average_score'],10)
+        self.assertEqual(detail['superseded_attempt_count'],404)
+
+    def test_retry_cannot_move_a_saved_question(self):
+        attempt = self.answer(1).json()['attempt_id']
+        self.assertEqual(self.answer(2,retry_attempt_id=attempt).status_code,422)
+        self.assertEqual(self.db.rows['quiz_sessions'][0]['question_position'],1)
+
+    def test_missing_score_is_not_saved_as_zero(self):
+        self.model.return_value = {'feedback':'Missing grade'}
+        self.assertEqual(self.answer().status_code, 502)
+        self.assertEqual(self.db.rows['quiz_sessions'], [])
 
     def test_failed_save_is_not_reported_as_success(self):
         def fail_after_evaluation(**_):

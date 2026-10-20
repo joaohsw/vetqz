@@ -28,10 +28,12 @@ import {
   deleteDocument,
   evaluateAnswer,
   generateQuestion,
+  getStudySession,
   restoreTopics,
   uploadPdf,
 } from '../lib/api';
 import { getTranslations } from '../i18n';
+import { formatScore, legacyScoreNotice } from '../lib/study-score';
 
 const STEPS = {
   UPLOAD: 'upload',
@@ -66,6 +68,7 @@ function createQuestionPlan(selectedTopics, questionCount) {
 export default function Home({ language, onProgressChange, resumeRequest, onResumeHandled }) {
   const copy = getTranslations(language);
   const questionCache = useRef({});
+  const [persistedSummary, setPersistedSummary] = useState(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -85,6 +88,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
   const [feedbackMode, setFeedbackMode] = useState(FEEDBACK_MODES.IMMEDIATE);
   const [questionPlan, setQuestionPlan] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [pendingEdits, setPendingEdits] = useState([]);
   const [sessionResults, setSessionResults] = useState([]);
   const [savedSessionContinuation, setSavedSessionContinuation] = useState(null);
 
@@ -180,6 +184,8 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
       setQuestionPlan([]);
       setCurrentQuestionIndex(0);
       setSessionResults([]);
+      setPendingEdits([]);
+      setPersistedSummary(null);
       questionCache.current = {};
 
       try {
@@ -409,6 +415,8 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
       setStudySessionId(studySession.id);
       setQuestionPlan(plan);
       setSessionResults([]);
+      setPendingEdits([]);
+      setPersistedSummary(null);
       setSavedSessionContinuation(null);
       await loadQuestion(0, plan);
     } catch (requestError) {
@@ -447,7 +455,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
   };
 
   const busy = isGenerating || isEvaluating || isCompleting || isStarting || isRecording;
-  const allAnswered = questionPlan.length > 0 && questionPlan.every(
+  const allAnswered = pendingEdits.length === 0 && questionPlan.length > 0 && questionPlan.every(
     (_, position) => sessionResults.some((attempt) => attempt.position === position),
   );
 
@@ -456,7 +464,17 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
     setIsCompleting(true);
     setError(null);
     try {
-      if (studySessionId) await completeStudySession(studySessionId, language);
+      if (studySessionId) {
+        await completeStudySession(studySessionId, language);
+        const saved = await getStudySession(studySessionId, language);
+        setPersistedSummary(saved);
+        setSessionResults(saved.attempts.filter((attempt) => Number.isFinite(attempt.score)).map((attempt) => ({
+          position: attempt.question_position - 1,
+          topicTitle: attempt.topic_title || '', question: attempt.question,
+          result: { score: attempt.score, feedback: attempt.feedback, model_answer: attempt.model_answer,
+            source: attempt.source_excerpt ? { excerpt: attempt.source_excerpt, page_number: attempt.source_page } : null },
+        })));
+      }
       setStep(STEPS.SUMMARY);
     } catch (requestError) {
       setError(requestError.message);
@@ -535,6 +553,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
         .sort((a, b) => a.position - b.position);
       const attemptId = evaluation.attempt_id || retryAttemptId;
       setSessionResults(results);
+      setPendingEdits((positions) => positions.filter((position) => position !== currentQuestionIndex));
       setRetryAttemptId(attemptId);
       setResult(evaluation);
       questionCache.current[currentQuestionIndex] = snapshotQuestion({ result: evaluation, retryAttemptId: attemptId });
@@ -559,6 +578,8 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
     setQuestionPlan([]);
     setCurrentQuestionIndex(0);
     setSessionResults([]);
+    setPendingEdits([]);
+    setPersistedSummary(null);
     setSavedSessionContinuation(null);
     setError(null);
     setStep(STEPS.SETUP);
@@ -577,6 +598,8 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
     setQuestionPlan([]);
     setCurrentQuestionIndex(0);
     setSessionResults([]);
+    setPendingEdits([]);
+    setPersistedSummary(null);
     setSavedSessionContinuation(null);
     setError(null);
     setStep(STEPS.UPLOAD);
@@ -584,7 +607,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
 
   const handleRetryQuestion = () => {
     if (busy) return;
-    setSessionResults((previous) => previous.filter((item) => item.position !== currentQuestionIndex));
+    setPendingEdits((positions) => [...new Set([...positions, currentQuestionIndex])]);
     setResult(null);
     setStep(STEPS.ANSWER);
   };
@@ -604,9 +627,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
     await loadQuestion(nextPosition, adjustedPlan);
   };
 
-  const averageScore = sessionResults.length
-    ? sessionResults.reduce((sum, attempt) => sum + attempt.result.score, 0) / sessionResults.length
-    : 0;
+  const averageScore = persistedSummary?.average_score ?? null;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -832,12 +853,13 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
             <h2 className="text-xl font-['Plus_Jakarta_Sans'] font-800 text-text-1">{copy.home.summaryTitle}</h2>
             <p className="text-sm text-text-3 mt-1">{copy.home.summaryDescription}</p>
             <div className="mt-5 flex items-end gap-2">
-              <span className="text-4xl font-['Plus_Jakarta_Sans'] font-800 text-teal-400">{averageScore.toFixed(1)}</span>
+              <span className="text-4xl font-['Plus_Jakarta_Sans'] font-800 text-teal-400">{averageScore === null ? copy.layout.studyHistoryNoScore : formatScore(averageScore, language)}</span>
               <span className="text-sm text-text-3 mb-1">{copy.home.averageScore}</span>
             </div>
           </div>
 
           <div className="space-y-2">
+            {legacyScoreNotice(persistedSummary, language) && <p role="status">{legacyScoreNotice(persistedSummary, language)}</p>}
             {sessionResults.map((attempt, index) => (
               <details key={`${attempt.question}-${index}`} className="card group">
                 <summary className="p-4 cursor-pointer list-none flex items-center justify-between gap-3">
