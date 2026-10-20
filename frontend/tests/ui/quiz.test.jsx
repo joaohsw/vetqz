@@ -2,11 +2,13 @@ import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Home from '../../src/pages/Home';
+import Layout from '../../src/components/Layout';
+import metricsContract from '../../../docs/examples/study-metrics-contract.json';
 import * as api from '../../src/lib/api';
 
 vi.mock('../../src/lib/api', () => ({
   analyzeTopics: vi.fn(), completeStudySession: vi.fn(), createStudySession: vi.fn(), deleteDocument: vi.fn(),
-  evaluateAnswer: vi.fn(), generateQuestion: vi.fn(), restoreTopics: vi.fn(), uploadPdf: vi.fn(),
+  listMaterials: vi.fn(), listStudyHistory: vi.fn(), getStudySession: vi.fn(), evaluateAnswer: vi.fn(), generateQuestion: vi.fn(), restoreTopics: vi.fn(), uploadPdf: vi.fn(),
 }));
 vi.mock('../../src/components/StudySetup', () => ({default: (props) => <div>
   <button onClick={() => props.onFeedbackModeChange('final')}>Feedback final</button>
@@ -21,6 +23,13 @@ beforeEach(() => {
   api.generateQuestion.mockImplementation(async () => ({question:`Pergunta gerada ${++sequence}`,reference_answer:'Modelo',chunk_used:'Fonte',chunk_index:0}));
   api.evaluateAnswer.mockImplementation(async ({questionPosition}) => ({score:5,feedback:'Feedback privado',model_answer:'Modelo',attempt_id:`attempt-${questionPosition}`}));
   api.completeStudySession.mockResolvedValue(undefined);
+  api.listMaterials.mockResolvedValue([]);
+  api.listStudyHistory.mockResolvedValue([]);
+  api.getStudySession.mockImplementation(async (id) => {
+    const positions = id === 'saved-session' ? [1,2,3] : [...new Set(api.evaluateAnswer.mock.calls.map(([args]) => args.questionPosition))];
+    return {average_score:5, answered_question_count:positions.length,
+      attempts:positions.map(position => ({question_position:position,question:`Saved ${position}`,score:5}))};
+  });
 });
 
 async function start({final=false,count=3}={}) {
@@ -153,5 +162,102 @@ describe('free question navigation', () => {
     expect(container.querySelector('textarea').value).toBe('Minha resposta');
     expect(nav(2).disabled).toBe(false);
     expect(nav(1).textContent).not.toContain('✓');
+  });
+});
+
+
+describe('persisted metrics presentation', () => {
+  it('renders the backend contract identically in the summary and reopened history', async () => {
+    api.getStudySession.mockResolvedValue(metricsContract);
+    api.listStudyHistory.mockResolvedValue([metricsContract]);
+    const {user,container,unmount}=await start({count:1});
+    await answer(user,container);
+    await user.click(container.querySelector('#finish-session-btn'));
+    await waitFor(()=>expect(container.querySelector('#new-session-btn')).not.toBeNull());
+    expect(screen.getByText('5,7')).toBeTruthy();
+    expect(container.querySelectorAll('section > .space-y-2 > details').length).toBe(3);
+    unmount();
+    render(<Layout language="pt-BR" session={{}} user={{email:'test@example.com'}} />);
+    await user.click(screen.getByRole('button',{name:/conta/i}));
+    await screen.findByText('5,7/10 m\u00e9dia');
+    expect(api.listStudyHistory).toHaveBeenCalledTimes(1);
+  });
+  it.each([['pt-BR', 2.3, '2,3'], ['es-CL', 8.7, '8,7'], ['pt-BR', null, null]])('formats persisted score in %s', async (language, score, formatted) => {
+    api.getStudySession.mockResolvedValue({...metricsContract, average_score:score});
+    const user=userEvent.setup();
+    const attempt={id:'a1',questionPosition:1,question:'Q1',referenceAnswer:'Modelo',score:0};
+    const {container}=render(<Home language={language} resumeRequest={{documentId:'doc',
+      plannedQuestionCount:1,studySessionId:'session',feedbackMode:'immediate',savedAttempts:[attempt],lastAttempt:attempt}} />);
+    await waitFor(()=>expect(container.querySelector('#finish-session-btn')).not.toBeNull());
+    await user.click(container.querySelector('#finish-session-btn'));
+    await waitFor(()=>expect(container.querySelector('#new-session-btn')).not.toBeNull());
+    if (formatted) expect(screen.getByText(formatted)).toBeTruthy();
+    else expect(screen.getByText('Sem nota')).toBeTruthy();
+  });
+
+  it('preserves the saved evaluation through a failed edit and blocks completion', async () => {
+    const {user,container}=await start({final:true,count:1});
+    await answer(user,container);
+    await user.click(await screen.findByText('Editar resposta'));
+    api.evaluateAnswer.mockRejectedValueOnce(new Error('Save failed'));
+    await user.type(container.querySelector('textarea'),' revised');
+    await user.click(container.querySelector('#submit-audio-answer-btn'));
+    await screen.findByText('Save failed');
+    expect(container.querySelector('#finish-session-btn')).toBeNull();
+    expect(api.getStudySession).not.toHaveBeenCalled();
+    await user.click(container.querySelector('#submit-audio-answer-btn'));
+    await waitFor(()=>expect(container.querySelector('#finish-session-btn')).not.toBeNull());
+    expect(api.evaluateAnswer.mock.calls.at(-1)[0].retryAttemptId).toBe('attempt-1');
+  });
+
+  it('keeps the summary closed when persisted metrics cannot be loaded and retries', async () => {
+    api.getStudySession.mockRejectedValueOnce(new Error('Metrics unavailable'));
+    const {user,container}=await start({count:1});
+    await answer(user,container);
+    await user.click(container.querySelector('#finish-session-btn'));
+    await screen.findByText('Metrics unavailable');
+    expect(container.querySelector('#new-session-btn')).toBeNull();
+    await user.click(container.querySelector('#finish-session-btn'));
+    await waitFor(()=>expect(container.querySelector('#new-session-btn')).not.toBeNull());
+  });
+});
+
+describe('resumed session metrics contract', () => {
+  it('keeps count and average aligned after out-of-order resume, replacement and history reload', async () => {
+    const user=userEvent.setup();
+    const revised={...metricsContract, average_score:metricsContract.revised.average_score,
+      answered_question_count:metricsContract.revised.answered_question_count,
+      attempts:metricsContract.attempts.map(attempt=>attempt.id===metricsContract.revised.replaced_attempt_id
+        ? {...attempt, score:metricsContract.revised.score} : attempt)};
+    api.getStudySession.mockResolvedValue(revised);
+    api.listStudyHistory.mockResolvedValue([revised]);
+    const saved=[{id:'a3',questionPosition:3,question:'Q3',referenceAnswer:'Modelo',studentAnswer:'R3',score:10},
+      {id:'a1',questionPosition:1,question:'Q1',referenceAnswer:'Modelo',studentAnswer:'R1',score:0}];
+    const {container,unmount}=render(<Home language="pt-BR" resumeRequest={{documentId:'doc',plannedQuestionCount:3,
+      studySessionId:'session',feedbackMode:'final',savedAttempts:saved,lastAttempt:saved[0]}} />);
+    await screen.findByText('Q3');
+    await user.click(nav(2)); await screen.findByText('Pergunta gerada 1');
+    api.evaluateAnswer.mockResolvedValueOnce({score:7,feedback:'F',model_answer:'Modelo',attempt_id:'a2'});
+    await answer(user,container);
+    await waitFor(()=>expect(container.querySelector('#finish-session-btn')).not.toBeNull());
+    await user.click(nav(1));
+    await user.click(await screen.findByText('Editar resposta'));
+    expect(container.querySelector('#finish-session-btn')).toBeNull();
+    api.evaluateAnswer.mockResolvedValueOnce({score:9,feedback:'F',model_answer:'Modelo',attempt_id:'a1'});
+    await user.type(container.querySelector('textarea'),' revisada');
+    await user.click(container.querySelector('#submit-audio-answer-btn'));
+    await waitFor(()=>expect(container.querySelector('#finish-session-btn')).not.toBeNull());
+    const lastCall=api.evaluateAnswer.mock.calls.at(-1)[0];
+    expect([lastCall.retryAttemptId,lastCall.questionPosition,lastCall.question]).toEqual(['a1',1,'Q1']);
+    await user.click(container.querySelector('#finish-session-btn'));
+    await waitFor(()=>expect(container.querySelector('#new-session-btn')).not.toBeNull());
+    expect(api.getStudySession).toHaveBeenCalledWith('session','pt-BR');
+    expect(screen.getByText('8,7')).toBeTruthy();
+    expect(container.querySelectorAll('section > .space-y-2 > details').length).toBe(revised.answered_question_count);
+    unmount();
+    render(<Layout language="pt-BR" session={{}} user={{email:'test@example.com'}} />);
+    await user.click(screen.getByRole('button',{name:/conta/i}));
+    await screen.findByText('8,7/10 m\u00e9dia');
+    expect(screen.getByText('3 de 3 respondidas')).toBeTruthy();
   });
 });

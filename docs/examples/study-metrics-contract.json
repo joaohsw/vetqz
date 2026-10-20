@@ -1,0 +1,24 @@
+{
+  "id": "session",
+  "document_id": null,
+  "document_filename": "atlas.pdf",
+  "topic_titles": [],
+  "planned_question_count": 3,
+  "difficulty": "medium",
+  "feedback_mode": "immediate",
+  "answered_question_count": 3,
+  "average_score": 5.7,
+  "status": "completed",
+  "started_at": "2026-10-13T12:00:00Z",
+  "attempts": [
+    {"id": "a1", "question_position": 1, "question": "Q1", "reference_answer": "Modelo", "score": 0},
+    {"id": "a2", "question_position": 2, "question": "Q2", "reference_answer": "Modelo", "score": 7},
+    {"id": "a3", "question_position": 3, "question": "Q3", "reference_answer": "Modelo", "score": 10}
+  ],
+  "revised": {
+    "replaced_attempt_id": "a1",
+    "score": 9,
+    "answered_question_count": 3,
+    "average_score": 8.7
+  }
+}

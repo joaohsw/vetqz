@@ -24,6 +24,7 @@ from app.schemas.difficulty import DEFAULT_DIFFICULTY, Difficulty
 from app.schemas.language import DEFAULT_LANGUAGE, SupportedLanguage
 from app.services.gemini_service import evaluate_answer
 from app.services.auth_service import require_current_user
+from app.services.study_metrics import valid_score
 from app.services.pdf_service import normalize_document_chunks, validate_source_excerpt
 from app.services.supabase_client import get_supabase_client
 from app.services.storage_service import delete_audio, upload_audio
@@ -185,7 +186,7 @@ async def evaluate_answer_endpoint(
         retry_result = (
             get_supabase_client()
             .table("quiz_sessions")
-            .select("id, study_session_id, audio_path")
+            .select("id, study_session_id, question_position, question, audio_path")
             .eq("id", retry_attempt_id)
             .eq("user_id", user_id)
             .execute()
@@ -201,6 +202,15 @@ async def evaluate_answer_endpoint(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="A tentativa não pertence à sessão de estudo informada.",
             )
+
+    if previous_attempt and (
+        previous_attempt.get("question_position") != question_position
+        or previous_attempt.get("question") != question
+    ):
+        raise HTTPException(status_code=422, detail=(
+            "El intento no corresponde a la pregunta indicada." if language == "es-CL"
+            else "A tentativa não corresponde à questão informada."
+        ))
 
     # --- VALIDAÇÃO E UPLOAD DO ÁUDIO (opcional) ---
     if audio and audio.filename:
@@ -222,6 +232,8 @@ async def evaluate_answer_endpoint(
             language=language,
             difficulty=difficulty,
         )
+        if not valid_score(gemini_result.get("score")):
+            raise ValueError("Evaluation returned an invalid or missing score")
     except Exception as e:
         if audio_path:
             try:
@@ -246,7 +258,7 @@ async def evaluate_answer_endpoint(
             "question": question,
             "reference_answer": reference_answer,
             "student_answer": student_answer,
-            "score": gemini_result.get("score", 0),
+            "score": gemini_result["score"],
             "feedback": gemini_result.get("feedback", ""),
             "model_answer": gemini_result.get("model_answer", ""),
             "audio_path": audio_path,
