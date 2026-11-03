@@ -12,8 +12,11 @@ import { createTopicLoader } from './topic-loader';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 
-async function apiFetch(path, options = {}) {
+async function apiFetch(path, options = {}, language = DEFAULT_LANGUAGE) {
   const headers = new Headers(options.headers);
+  if (language && !headers.has('Accept-Language')) {
+    headers.set('Accept-Language', language);
+  }
   const { data, error } = await supabase.auth.getSession();
 
   if (error) {
@@ -46,20 +49,20 @@ export async function uploadPdf(file, language = DEFAULT_LANGUAGE, onProgress = 
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ filename: file.name, size_bytes: file.size, language }),
-  });
+  }, language);
 
   if (!intentResponse.ok) {
     await throwApiError(intentResponse, language);
   }
 
   const intent = await intentResponse.json();
-  await uploadPdfDirectly(file, intent.storage_path, onProgress);
+  await uploadPdfDirectly(file, intent.storage_path, onProgress, language);
 
   const response = await apiFetch('/api/process-upload', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ upload_id: intent.upload_id, language }),
-  });
+  }, language);
 
   if (!response.ok) {
     await throwApiError(response, language);
@@ -77,7 +80,7 @@ export async function analyzeTopics(documentId, language = DEFAULT_LANGUAGE) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ document_id: documentId, language }),
-  });
+  }, language);
 
   if (!response.ok) {
     await throwApiError(response, language);
@@ -89,6 +92,8 @@ export async function analyzeTopics(documentId, language = DEFAULT_LANGUAGE) {
 const loadSavedTopics = createTopicLoader(async (documentId, language) => {
   const response = await apiFetch(
     `/api/documents/${encodeURIComponent(documentId)}/topics?language=${encodeURIComponent(language)}`,
+    {},
+    language,
   );
   if (!response.ok) await throwApiError(response, language);
   return response.json();
@@ -122,7 +127,7 @@ export async function generateQuestion(documentId, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  });
+  }, language);
 
   if (!response.ok) {
     await throwApiError(response, language);
@@ -181,7 +186,7 @@ export async function evaluateAnswer({
   const response = await apiFetch('/api/evaluate-answer', {
     method: 'POST',
     body: formData,
-  });
+  }, language);
 
   if (!response.ok) {
     await throwApiError(response, language);
@@ -196,9 +201,13 @@ export async function evaluateAnswer({
  * @param {string} language - Idioma para mensagens de erro.
  */
 export async function deleteDocument(documentId, language = DEFAULT_LANGUAGE) {
-  const response = await apiFetch(`/api/documents/${documentId}?language=${language}`, {
-    method: 'DELETE',
-  });
+  const response = await apiFetch(
+    `/api/documents/${encodeURIComponent(documentId)}?language=${encodeURIComponent(language)}`,
+    {
+      method: 'DELETE',
+    },
+    language,
+  );
 
   if (!response.ok) {
     await throwApiError(response, language);
@@ -209,7 +218,11 @@ export async function deleteDocument(documentId, language = DEFAULT_LANGUAGE) {
  * Lista PDFs temporários ainda disponíveis para a conta atual.
  */
 export async function listMaterials(language = DEFAULT_LANGUAGE) {
-  const response = await apiFetch('/api/materials');
+  const response = await apiFetch(
+    `/api/materials?language=${encodeURIComponent(language)}`,
+    {},
+    language,
+  );
 
   if (!response.ok) {
     await throwApiError(response, language);
@@ -238,7 +251,7 @@ export async function createStudySession({
       feedback_mode: feedbackMode,
       language,
     }),
-  });
+  }, language);
 
   if (!response.ok) {
     await throwApiError(response, language);
@@ -248,9 +261,13 @@ export async function createStudySession({
 
 /** Marca a sessão como concluída ao terminar a última pergunta. */
 export async function completeStudySession(studySessionId, language = DEFAULT_LANGUAGE) {
-  const response = await apiFetch(`/api/study-sessions/${studySessionId}/complete`, {
-    method: 'POST',
-  });
+  const response = await apiFetch(
+    `/api/study-sessions/${encodeURIComponent(studySessionId)}/complete?language=${encodeURIComponent(language)}`,
+    {
+      method: 'POST',
+    },
+    language,
+  );
 
   if (!response.ok) {
     await throwApiError(response, language);
@@ -259,7 +276,11 @@ export async function completeStudySession(studySessionId, language = DEFAULT_LA
 
 /** Lista sessões e desempenho recente para o histórico da conta. */
 export async function listStudyHistory(language = DEFAULT_LANGUAGE) {
-  const response = await apiFetch('/api/study-sessions');
+  const response = await apiFetch(
+    `/api/study-sessions?language=${encodeURIComponent(language)}`,
+    {},
+    language,
+  );
 
   if (!response.ok) {
     await throwApiError(response, language);
@@ -269,7 +290,11 @@ export async function listStudyHistory(language = DEFAULT_LANGUAGE) {
 
 /** Canonical persisted metrics, also used by the account history. */
 export async function getStudySession(studySessionId, language = DEFAULT_LANGUAGE) {
-  const response = await apiFetch(`/api/study-sessions/${studySessionId}`);
+  const response = await apiFetch(
+    `/api/study-sessions/${encodeURIComponent(studySessionId)}?language=${encodeURIComponent(language)}`,
+    {},
+    language,
+  );
   if (!response.ok) await throwApiError(response, language);
   return response.json();
 }

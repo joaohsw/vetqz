@@ -197,6 +197,7 @@ export const translations = {
         unsupported: 'Tipo de arquivo não suportado: {type}. Apenas PDF é aceito.',
         unknownType: 'desconhecido',
         tooLarge: 'Arquivo muito grande ({size}MB). Limite: {limit}MB.',
+        sessionExpired: 'Sua sessão expirou. Entre novamente para enviar o PDF.',
       },
     },
     studySetup: {
@@ -532,6 +533,7 @@ export const translations = {
         unsupported: 'Tipo de archivo no compatible: {type}. Solo se aceptan archivos PDF.',
         unknownType: 'desconocido',
         tooLarge: 'El archivo es demasiado grande ({size}MB). Límite: {limit}MB.',
+        sessionExpired: 'Tu sesión expiró. Inicia sesión nuevamente para subir el PDF.',
       },
     },
     studySetup: {
@@ -686,4 +688,107 @@ export function formatMessage(template, values = {}) {
     (message, [key, value]) => message.replaceAll(`{${key}}`, String(value)),
     template
   );
+}
+
+const ERROR_TRANSLATION_PAIRS = [
+  [
+    'Não foi possível encontrar um assunto selecionado para esta pergunta.',
+    'No fue posible encontrar un tema seleccionado para esta pregunta.',
+  ],
+  [
+    'Sua sessão expirou. Entre novamente para enviar o PDF.',
+    'Tu sesión expiró. Inicia sesión nuevamente para subir el PDF.',
+  ],
+  [
+    'Autenticação necessária para acessar seus materiais.',
+    'Se requiere autenticación para acceder a tus materiales.',
+  ],
+  [
+    'Sessão inválida. Entre novamente para continuar.',
+    'Sesión inválida. Inicia sesión nuevamente para continuar.',
+  ],
+  [
+    'Sessão inválida ou expirada. Entre novamente para continuar.',
+    'Sesión inválida o expirada. Inicia sesión nuevamente para continuar.',
+  ],
+  [
+    'O envio expirou ou não pertence à sua conta. Selecione o PDF novamente.',
+    'El envío expiró o no pertenece a tu cuenta. Selecciona el PDF nuevamente.',
+  ],
+  [
+    'O envio expirou. Selecione o PDF novamente.',
+    'El envío expiró. Selecciona el PDF nuevamente.',
+  ],
+  [
+    'O PDF não contém texto extraível. Verifique se não é um PDF escaneado (imagem).',
+    'El PDF no contiene texto extraíble. Comprueba que no sea un PDF escaneado como imagen.',
+  ],
+  [
+    'O documento não possui trechos de texto. O PDF pode estar vazio ou corrompido.',
+    'El documento no contiene fragmentos de texto. El PDF puede estar vacío o dañado.',
+  ],
+  [
+    'Nenhum trecho válido foi selecionado para gerar a pergunta.',
+    'No se seleccionó ningún fragmento válido para generar la pregunta.',
+  ],
+  [
+    'O trecho solicitado não pertence aos assuntos selecionados.',
+    'El fragmento solicitado no pertenece a los temas seleccionados.',
+  ],
+  [
+    'O arquivo de áudio está vazio.',
+    'El archivo de audio está vacío.',
+  ],
+  [
+    'Não foi possível salvar a resposta. Tente novamente.',
+    'No fue posible guardar la respuesta. Inténtalo de nuevo.',
+  ],
+  [
+    'Sessão de estudo não encontrada.',
+    'Sesión de estudio no encontrada.',
+  ],
+  [
+    'Não foi possível iniciar sua sessão de estudo.',
+    'No fue posible iniciar tu sesión de estudio.',
+  ],
+  [
+    'Não foi possível carregar seu histórico de estudos.',
+    'No fue posible cargar tu historial de estudio.',
+  ],
+  [
+    'Não foi possível carregar seus materiais recentes.',
+    'No fue posible cargar tus materiales recientes.',
+  ],
+  [
+    'A posição da pergunta deve começar em 1.',
+    'La posición de la pregunta debe comenzar en 1.',
+  ],
+  [
+    'A tentativa que você quer refazer não foi encontrada.',
+    'No se encontró el intento que deseas repetir.',
+  ],
+  [
+    'A tentativa não pertence à sessão de estudo informada.',
+    'El intento no pertenece a la sesión de estudio indicada.',
+  ],
+  [
+    'A tentativa não corresponde à questão informada.',
+    'El intento no corresponde a la pregunta indicada.',
+  ],
+  [
+    'Erro desconhecido',
+    'Error desconocido',
+  ],
+];
+
+export function translateErrorMessage(message, language) {
+  if (!message || typeof message !== 'string') return message;
+  const targetIndex = language === 'es-CL' ? 1 : 0;
+  const sourceIndex = language === 'es-CL' ? 0 : 1;
+  for (const pair of ERROR_TRANSLATION_PAIRS) {
+    if (message === pair[sourceIndex]) {
+      return pair[targetIndex];
+    }
+  }
+  return message;
 }

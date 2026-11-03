@@ -32,7 +32,7 @@ import {
   restoreTopics,
   uploadPdf,
 } from '../lib/api';
-import { getTranslations } from '../i18n';
+import { getTranslations, translateErrorMessage } from '../i18n';
 import { formatScore, legacyScoreNotice } from '../lib/study-score';
 
 const STEPS = {
@@ -705,7 +705,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
 
       {error && (
         <div className="px-4 py-3 rounded-lg border border-danger/30 bg-danger-muted/10 text-sm text-danger">
-          {error}
+          {translateErrorMessage(error, language)}
         </div>
       )}
 

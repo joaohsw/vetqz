@@ -80,7 +80,8 @@ async def analyze_topics_endpoint(
         if time.monotonic() >= deadline:
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                                 headers={"Retry-After": "2"},
-                                detail=api_message(request.language, "topic_analysis", error="analysis_in_progress"))
+                                detail=api_message(request.language, "topic_analysis",
+                                                   error=api_message(request.language, "topic_analysis_in_progress")))
         await asyncio.sleep(0.25)
 
     def persist(value):
@@ -105,7 +106,7 @@ async def analyze_topics_endpoint(
             analysis = await analyze_topics(topic_chunks, request.language)
             current_cache = make_topic_cache(analysis, current_chunks)
             if not valid_topic_cache(current_cache, current_chunks):
-                raise ValueError("Mapa de assuntos inválido")
+                raise ValueError(api_message(request.language, "invalid_topic_map"))
             # Preservar análise mesmo se a tradução de fallback falhar depois.
             persist(current_cache)
         saved = localized_analysis(current_cache, request.language)

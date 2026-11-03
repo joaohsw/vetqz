@@ -2,9 +2,10 @@
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 
-from app.localization import api_message
+from app.localization import api_message, resolve_language
+from app.schemas.language import SupportedLanguage
 from app.schemas.study_session import (
     CreateStudySessionRequest,
     StudySessionAttemptResponse,
@@ -26,8 +27,11 @@ router = APIRouter()
 async def list_study_sessions_endpoint(
     user_id: str = Depends(require_current_user),
     session_id: str | None = None,
+    language: SupportedLanguage | None = None,
+    accept_language: str | None = Header(default=None),
 ):
     """Agrupa respostas por sessão e entrega somente o histórico do aluno atual."""
+    resolved_language = resolve_language(language, accept_language)
     supabase = get_supabase_client()
     try:
         sessions_query = (
@@ -68,7 +72,7 @@ async def list_study_sessions_endpoint(
     except Exception as error:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Não foi possível carregar seu histórico de estudos.",
+            detail=api_message(resolved_language, "study_history_load_failed"),
         ) from error
 
     attempts_by_session = {sid: [] for sid in session_ids}
@@ -117,11 +121,21 @@ async def list_study_sessions_endpoint(
 @router.get("/study-sessions/{study_session_id}", response_model=StudySessionHistoryResponse)
 async def get_study_session_endpoint(
     study_session_id: str,
+    language: SupportedLanguage | None = None,
+    accept_language: str | None = Header(default=None),
     user_id: str = Depends(require_current_user),
 ):
-    sessions = await list_study_sessions_endpoint(user_id=user_id, session_id=study_session_id)
+    resolved_language = resolve_language(language, accept_language)
+    sessions = await list_study_sessions_endpoint(
+        user_id=user_id,
+        session_id=study_session_id,
+        language=resolved_language,
+    )
     if not sessions:
-        raise HTTPException(status_code=404, detail="Sessão de estudo não encontrada.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=api_message(resolved_language, "study_session_not_found"),
+        )
     return sessions[0]
 
 
@@ -170,7 +184,7 @@ async def create_study_session_endpoint(
     except Exception as error:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Não foi possível iniciar sua sessão de estudo.",
+            detail=api_message(request.language, "study_session_create_failed"),
         ) from error
 
     return StudySessionResponse(
@@ -187,9 +201,12 @@ async def create_study_session_endpoint(
 )
 async def complete_study_session_endpoint(
     study_session_id: str,
+    language: SupportedLanguage | None = None,
+    accept_language: str | None = Header(default=None),
     user_id: str = Depends(require_current_user),
 ):
     """Finaliza a sessão sem apagar seu histórico de tentativas."""
+    resolved_language = resolve_language(language, accept_language)
     result = (
         get_supabase_client()
         .table("study_sessions")
@@ -201,5 +218,5 @@ async def complete_study_session_endpoint(
     if not result.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Sessão de estudo não encontrada.",
+            detail=api_message(resolved_language, "study_session_not_found"),
         )

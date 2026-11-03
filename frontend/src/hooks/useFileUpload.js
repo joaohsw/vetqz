@@ -15,32 +15,44 @@ const ALLOWED_TYPES = ['application/pdf'];
 export function useFileUpload(language) {
   const copy = getTranslations(language);
   const [file, setFile] = useState(null);
-  const [error, setError] = useState(null);
+  const [errorInfo, setErrorInfo] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
 
   /**
    * Valida o arquivo selecionado.
    * @param {File} selectedFile
-   * @returns {string|null} Mensagem de erro ou null se válido.
+   * @returns {Object|null} Descritor do erro ou null se válido.
    */
   const validateFile = useCallback((selectedFile) => {
-    if (!selectedFile) return copy.pdfUpload.errors.noFile;
+    if (!selectedFile) return { code: 'noFile' };
 
     if (!ALLOWED_TYPES.includes(selectedFile.type)) {
-      return formatMessage(copy.pdfUpload.errors.unsupported, {
-        type: selectedFile.type || copy.pdfUpload.errors.unknownType,
-      });
+      return { code: 'unsupported', type: selectedFile.type || '' };
     }
 
     if (selectedFile.size > MAX_PDF_SIZE_BYTES) {
-      return formatMessage(copy.pdfUpload.errors.tooLarge, {
+      return {
+        code: 'tooLarge',
         size: (selectedFile.size / 1024 / 1024).toFixed(1),
         limit: MAX_PDF_SIZE_MB,
-      });
+      };
     }
 
     return null;
-  }, [copy]);
+  }, []);
+
+  const error = errorInfo
+    ? errorInfo.code === 'noFile'
+      ? copy.pdfUpload.errors.noFile
+      : errorInfo.code === 'unsupported'
+        ? formatMessage(copy.pdfUpload.errors.unsupported, {
+            type: errorInfo.type || copy.pdfUpload.errors.unknownType,
+          })
+        : formatMessage(copy.pdfUpload.errors.tooLarge, {
+            size: errorInfo.size,
+            limit: errorInfo.limit,
+          })
+    : null;
 
   /**
    * Processa um arquivo (de input ou drag-and-drop).
@@ -49,11 +61,11 @@ export function useFileUpload(language) {
     (selectedFile) => {
       const validationError = validateFile(selectedFile);
       if (validationError) {
-        setError(validationError);
+        setErrorInfo(validationError);
         setFile(null);
         return false;
       }
-      setError(null);
+      setErrorInfo(null);
       setFile(selectedFile);
       return true;
     },
@@ -103,7 +115,7 @@ export function useFileUpload(language) {
    */
   const clearFile = useCallback(() => {
     setFile(null);
-    setError(null);
+    setErrorInfo(null);
   }, []);
 
   return {

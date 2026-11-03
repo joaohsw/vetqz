@@ -220,7 +220,7 @@ async def process_uploaded_pdf_endpoint(
     if not intent_result.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="O envio expirou ou não pertence à sua conta. Selecione o PDF novamente.",
+            detail=api_message(request.language, "upload_intent_not_found"),
         )
 
     intent = intent_result.data[0]
@@ -231,7 +231,7 @@ async def process_uploaded_pdf_endpoint(
             supabase.table("upload_intents").delete().eq("id", intent["id"]).execute()
         raise HTTPException(
             status_code=status.HTTP_410_GONE,
-            detail="O envio expirou. Selecione o PDF novamente.",
+            detail=api_message(request.language, "upload_intent_expired"),
         )
 
     try:

@@ -15,6 +15,7 @@ from google import genai
 from google.genai import types
 
 from app.config import settings
+from app.localization import api_message
 from app.schemas.difficulty import DEFAULT_DIFFICULTY, Difficulty
 from app.schemas.language import (
     DEFAULT_LANGUAGE,
@@ -196,7 +197,7 @@ EVALUATION_REQUEST = (
 )
 
 
-def _parse_json_response(text: str) -> dict:
+def _parse_json_response(text: str, language: SupportedLanguage = DEFAULT_LANGUAGE) -> dict:
     """
     Parseia a resposta JSON do Gemini de forma robusta.
     Tenta primeiro parse direto, depois extrai JSON de markdown code blocks.
@@ -217,7 +218,7 @@ def _parse_json_response(text: str) -> dict:
     if match:
         return json.loads(match.group(0))
 
-    raise ValueError(f"Não foi possível extrair JSON da resposta do Gemini: {text[:200]}")
+    raise ValueError(api_message(language, "gemini_invalid_json", preview=text[:200]))
 
 
 async def generate_question(
@@ -248,7 +249,7 @@ async def generate_question(
         contents=f"<context>\n{context}\n</context>",
         config=_with_instructions(instructions),
     )
-    return _parse_json_response(response.text)
+    return _parse_json_response(response.text, language)
 
 
 def _normalize_topics(raw_topics: object, total_chunks: int) -> list[dict]:
@@ -302,14 +303,14 @@ async def analyze_topics(
         contents=prompt,
         config=_topic_generation_config,
     )
-    parsed = _parse_json_response(response.text)
+    parsed = _parse_json_response(response.text, language)
     if type(parsed.get("is_veterinary")) is not bool:
-        raise ValueError("Classificação de conteúdo inválida")
+        raise ValueError(api_message(language, "invalid_content_classification"))
     aliases = {index: chunk["chunk_indices"] for chunk in chunks for index in chunk["chunk_indices"]}
     total_chunks = max(aliases, default=-1) + 1
     raw_topics = parsed.get("topics")
     if not isinstance(raw_topics, list):
-        raise ValueError("Mapa de assuntos inválido")
+        raise ValueError(api_message(language, "invalid_topic_map"))
     topics = []
     for position, raw in enumerate(raw_topics):
         if not isinstance(raw, dict):
@@ -335,7 +336,7 @@ async def analyze_topics(
         if indices:
             topics.append({"id": f"topic-{position + 1}", "chunk_indices": indices, "translations": translations})
     if not topics:
-        raise ValueError("Nenhum assunto válido na resposta do Gemini")
+        raise ValueError(api_message(language, "no_valid_topics"))
     return {"topics": topics, "is_veterinary": parsed["is_veterinary"]}
 
 
@@ -360,13 +361,13 @@ async def translate_topic_metadata(topics: list[dict], language: SupportedLangua
     response = await _client.aio.models.generate_content(
         model=_model_name, contents=prompt, config=_topic_generation_config,
     )
-    raw = _parse_json_response(response.text).get("topics")
+    raw = _parse_json_response(response.text, language).get("topics")
     if not isinstance(raw, list):
-        raise ValueError("Tradução de assuntos inválida")
+        raise ValueError(api_message(language, "invalid_topic_translation"))
     translated = {item.get("id"): {**item, "language": language} for item in raw
                   if isinstance(item, dict) and isinstance(item.get("id"), str)}
     if any(not valid_translation(translated.get(item["id"]), language) for item in source):
-        raise ValueError("Tradução incompleta; a análise original foi preservada")
+        raise ValueError(api_message(language, "incomplete_topic_translation"))
     result = []
     for topic in topics:
         translations = dict(topic["translations"])
@@ -417,7 +418,7 @@ async def evaluate_answer(
         contents=contents,
         config=_with_instructions(instructions),
     )
-    result = _parse_json_response(response.text)
+    result = _parse_json_response(response.text, language)
 
     # Garante que o score está no range válido
     result["score"] = max(0.0, min(10.0, float(result.get("score", 0))))

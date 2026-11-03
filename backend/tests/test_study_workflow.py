@@ -234,5 +234,34 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(caught.exception.status_code, 413)
             extract.assert_not_called()
 
+    def test_error_messages_respect_spanish_language(self):
+        missing_intent = self.client.post('/api/process-upload', json={'upload_id': 'missing', 'language': 'es-CL'})
+        self.assertEqual(missing_intent.status_code, 404)
+        self.assertIn('El envío expiró', missing_intent.json()['detail'])
+
+        missing_session = self.client.get('/api/study-sessions/missing?language=es-CL')
+        self.assertEqual(missing_session.status_code, 404)
+        self.assertEqual(missing_session.json()['detail'], 'Sesión de estudio no encontrada.')
+
+        complete_missing = self.client.post('/api/study-sessions/missing/complete?language=es-CL')
+        self.assertEqual(complete_missing.status_code, 404)
+        self.assertEqual(complete_missing.json()['detail'], 'Sesión de estudio no encontrada.')
+
+        invalid_position = self.answer(position=0, language='es-CL')
+        self.assertEqual(invalid_position.status_code, 422)
+        self.assertEqual(invalid_position.json()['detail'], 'La posición de la pregunta debe comenzar en 1.')
+
+        missing_retry = self.answer(position=1, retry_attempt_id='missing', language='es-CL')
+        self.assertEqual(missing_retry.status_code, 404)
+        self.assertEqual(missing_retry.json()['detail'], 'No se encontró el intento que deseas repetir.')
+
+        def fail_after_evaluation(**_):
+            self.db.fail = True
+            return {'score': 7, 'feedback': 'Feedback', 'model_answer': 'Modelo'}
+        self.model.side_effect = fail_after_evaluation
+        save_error = self.answer(position=1, language='es-CL')
+        self.assertEqual(save_error.status_code, 500)
+        self.assertEqual(save_error.json()['detail'], 'No fue posible guardar la respuesta. Inténtalo de nuevo.')
+
 
 if __name__ == '__main__': unittest.main()

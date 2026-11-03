@@ -6,6 +6,7 @@
 
 import * as tus from 'tus-js-client';
 
+import { DEFAULT_LANGUAGE, getTranslations } from '../i18n';
 import { supabase } from './supabase';
 
 const TUS_THRESHOLD_BYTES = 6 * 1024 * 1024;
@@ -17,10 +18,10 @@ function getStorageEndpoint() {
   return `https://${projectId}.storage.supabase.co/storage/v1/upload/resumable`;
 }
 
-async function uploadWithTus(file, objectPath, onProgress) {
+async function uploadWithTus(file, objectPath, onProgress, language = DEFAULT_LANGUAGE) {
   const { data, error } = await supabase.auth.getSession();
   if (error || !data.session?.access_token) {
-    throw new Error('Sua sessão expirou. Entre novamente para enviar o PDF.');
+    throw new Error(getTranslations(language).pdfUpload.errors.sessionExpired);
   }
 
   return new Promise((resolve, reject) => {
@@ -58,11 +59,11 @@ async function uploadWithTus(file, objectPath, onProgress) {
   });
 }
 
-export async function uploadPdfDirectly(file, storagePath, onProgress) {
+export async function uploadPdfDirectly(file, storagePath, onProgress, language = DEFAULT_LANGUAGE) {
   const objectPath = storagePath.replace(/^materials\//, '');
 
   if (file.size > TUS_THRESHOLD_BYTES) {
-    await uploadWithTus(file, objectPath, onProgress);
+    await uploadWithTus(file, objectPath, onProgress, language);
     return;
   }
 

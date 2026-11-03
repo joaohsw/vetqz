@@ -123,7 +123,11 @@ def get_source_reference(
         return None
 
 
-def get_owned_study_session(study_session_id: str | None, user_id: str) -> str | None:
+def get_owned_study_session(
+    study_session_id: str | None,
+    user_id: str,
+    language: SupportedLanguage = DEFAULT_LANGUAGE,
+) -> str | None:
     """Aceita somente uma sessão que pertença ao aluno que está respondendo."""
     if not study_session_id:
         return None
@@ -139,7 +143,7 @@ def get_owned_study_session(study_session_id: str | None, user_id: str) -> str |
     if not result.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Sessão de estudo não encontrada.",
+            detail=api_message(language, "study_session_not_found"),
         )
     return result.data[0]["id"]
 
@@ -178,9 +182,9 @@ async def evaluate_answer_endpoint(
     if question_position is not None and question_position < 1:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="A posição da pergunta deve começar em 1.",
+            detail=api_message(language, "invalid_question_position"),
     )
-    owned_study_session_id = get_owned_study_session(study_session_id, user_id)
+    owned_study_session_id = get_owned_study_session(study_session_id, user_id, language)
     previous_attempt = None
     if retry_attempt_id:
         retry_result = (
@@ -194,23 +198,23 @@ async def evaluate_answer_endpoint(
         if not retry_result.data:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="A tentativa que você quer refazer não foi encontrada.",
+                detail=api_message(language, "retry_attempt_not_found"),
             )
         previous_attempt = retry_result.data[0]
         if not owned_study_session_id or previous_attempt.get("study_session_id") != owned_study_session_id:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="A tentativa não pertence à sessão de estudo informada.",
+                detail=api_message(language, "retry_attempt_session_mismatch"),
             )
 
     if previous_attempt and (
         previous_attempt.get("question_position") != question_position
         or previous_attempt.get("question") != question
     ):
-        raise HTTPException(status_code=422, detail=(
-            "El intento no corresponde a la pregunta indicada." if language == "es-CL"
-            else "A tentativa não corresponde à questão informada."
-        ))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=api_message(language, "retry_attempt_question_mismatch"),
+        )
 
     # --- VALIDAÇÃO E UPLOAD DO ÁUDIO (opcional) ---
     if audio and audio.filename:
@@ -233,7 +237,7 @@ async def evaluate_answer_endpoint(
             difficulty=difficulty,
         )
         if not valid_score(gemini_result.get("score")):
-            raise ValueError("Evaluation returned an invalid or missing score")
+            raise ValueError(api_message(language, "invalid_evaluation_score"))
     except Exception as e:
         if audio_path:
             try:
@@ -296,7 +300,7 @@ async def evaluate_answer_endpoint(
                 pass
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Não foi possível salvar a resposta. Tente novamente.",
+            detail=api_message(language, "answer_save_failed"),
         ) from e
 
     return EvaluateAnswerResponse(

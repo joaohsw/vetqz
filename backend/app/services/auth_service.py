@@ -1,25 +1,29 @@
 """Dependência de autenticação para endpoints que manipulam dados do aluno."""
 
-from fastapi import Header, HTTPException, status
+from fastapi import Header, HTTPException, Query, status
 
+from app.localization import api_message, resolve_language
 from app.services.supabase_client import get_supabase_client
 
 
 def require_current_user(
     authorization: str | None = Header(default=None),
+    accept_language: str | None = Header(default=None),
+    language: str | None = Query(default=None),
 ) -> str:
     """Valida o JWT do Supabase e retorna o UUID do usuário autenticado."""
+    resolved_language = resolve_language(language, accept_language)
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Autenticação necessária para acessar seus materiais.",
+            detail=api_message(resolved_language, "auth_required"),
         )
 
     token = authorization.removeprefix("Bearer ").strip()
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Sessão inválida. Entre novamente para continuar.",
+            detail=api_message(resolved_language, "invalid_session"),
         )
 
     try:
@@ -31,7 +35,7 @@ def require_current_user(
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Sessão inválida ou expirada. Entre novamente para continuar.",
+            detail=api_message(resolved_language, "expired_session"),
         )
 
     return str(user.id)

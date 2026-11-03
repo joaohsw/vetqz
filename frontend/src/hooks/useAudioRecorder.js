@@ -33,9 +33,9 @@ export function useAudioRecorder(language) {
   const [audioBlob, setAudioBlob] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
   const [duration, setDuration] = useState(0);
-  const [error, setError] = useState(null);
+  const [errorInfo, setErrorInfo] = useState(null);
   const [transcript, setTranscript] = useState('');
-  const [transcriptionError, setTranscriptionError] = useState(null);
+  const [transcriptionErrorCode, setTranscriptionErrorCode] = useState(null);
   const [recognitionUnavailable, setRecognitionUnavailable] = useState(false);
 
   const mediaRecorder = useRef(null);
@@ -54,6 +54,28 @@ export function useAudioRecorder(language) {
     statusRef.current = status;
   }, [status]);
 
+  useEffect(() => {
+    if (speechRecognition.current) {
+      speechRecognition.current.lang = language;
+    }
+  }, [language]);
+
+  const error = errorInfo
+    ? errorInfo.code === 'microphoneDenied'
+      ? copy.audio.errors.microphoneDenied
+      : formatMessage(copy.audio.errors.microphoneGeneric, { error: errorInfo.message })
+    : null;
+
+  const transcriptionError = transcriptionErrorCode
+    ? {
+        'not-allowed': copy.audio.errors.transcriptionDenied,
+        'service-not-allowed': copy.audio.errors.transcriptionBlocked,
+        network: copy.audio.errors.transcriptionNetwork,
+        'audio-capture': copy.audio.errors.transcriptionCapture,
+      }[transcriptionErrorCode] ||
+      formatMessage(copy.audio.errors.transcriptionGeneric, { error: transcriptionErrorCode })
+    : null;
+
   const SpeechRecognition =
     typeof window !== 'undefined'
       ? window.SpeechRecognition || window.webkitSpeechRecognition
@@ -68,7 +90,7 @@ export function useAudioRecorder(language) {
     if (resetTranscript) {
       finalTranscript.current = '';
       setTranscript('');
-      setTranscriptionError(null);
+      setTranscriptionErrorCode(null);
       setRecognitionUnavailable(false);
     }
 
@@ -104,17 +126,7 @@ export function useAudioRecorder(language) {
 
       recognition.onerror = (event) => {
         if (event.error === 'no-speech' || event.error === 'aborted') return;
-
-        const messages = {
-          'not-allowed': copy.audio.errors.transcriptionDenied,
-          'service-not-allowed': copy.audio.errors.transcriptionBlocked,
-          network: copy.audio.errors.transcriptionNetwork,
-          'audio-capture': copy.audio.errors.transcriptionCapture,
-        };
-        setTranscriptionError(
-          messages[event.error] ||
-            formatMessage(copy.audio.errors.transcriptionGeneric, { error: event.error })
-        );
+        setTranscriptionErrorCode(event.error);
       };
 
       // Alguns navegadores (ex.: Opera/Opera GX) expõem a API mas nunca
@@ -144,6 +156,7 @@ export function useAudioRecorder(language) {
       speechRecognition.current = recognition;
     }
 
+    speechRecognition.current.lang = language;
     shouldRestartRecognition.current = true;
     hasRecognitionStartedRef.current = false;
     try {
@@ -151,7 +164,7 @@ export function useAudioRecorder(language) {
     } catch {
       // A instância já pode estar ativa.
     }
-  }, [SpeechRecognition, copy, language]);
+  }, [SpeechRecognition, language]);
 
   const stopSpeechRecognition = useCallback(() => {
     shouldRestartRecognition.current = false;
@@ -171,7 +184,7 @@ export function useAudioRecorder(language) {
    */
   const startRecording = useCallback(async (currentTranscript = '') => {
     try {
-      setError(null);
+      setErrorInfo(null);
       setAudioBlob(null);
       setAudioUrl(null);
       setDuration(0);
@@ -182,7 +195,7 @@ export function useAudioRecorder(language) {
         : '';
       finalTranscript.current = transcriptBaseline;
       setTranscript(transcriptBaseline);
-      setTranscriptionError(null);
+      setTranscriptionErrorCode(null);
       audioChunks.current = [];
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -232,15 +245,15 @@ export function useAudioRecorder(language) {
         setDuration(Math.floor((Date.now() - startTimeRef.current) / 1000));
       }, 1000);
     } catch (err) {
-      setError(
+      setErrorInfo(
         err.name === 'NotAllowedError'
-          ? copy.audio.errors.microphoneDenied
-          : formatMessage(copy.audio.errors.microphoneGeneric, { error: err.message })
+          ? { code: 'microphoneDenied' }
+          : { code: 'microphoneGeneric', message: err.message }
       );
       statusRef.current = 'idle';
       setStatus('idle');
     }
-  }, [copy, startSpeechRecognition]);
+  }, [startSpeechRecognition]);
 
   /**
    * Para a gravação e gera o Blob de áudio.
@@ -304,9 +317,9 @@ export function useAudioRecorder(language) {
     setAudioBlob(null);
     setAudioUrl(null);
     setDuration(0);
-    setError(null);
+    setErrorInfo(null);
     setTranscript('');
-    setTranscriptionError(null);
+    setTranscriptionErrorCode(null);
     setRecognitionUnavailable(false);
     statusRef.current = 'idle';
     setStatus('idle');

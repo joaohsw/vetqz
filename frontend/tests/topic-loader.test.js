@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { getTranslations, translateErrorMessage } from '../src/i18n.js';
 import { createTopicLoader } from '../src/lib/topic-loader.js';
 
 test('restauração usa assuntos salvos e revalida a versão no servidor', async () => {
@@ -38,4 +39,19 @@ test('falha na consulta não dispara análise e permite tentar novamente', async
   }, () => assert.fail());
   await assert.rejects(load('doc', 'pt-BR', 'user'), /unauthorized/);
   assert.deepEqual(await load('doc', 'pt-BR', 'user'), { topics: [] });
+});
+
+test('mensagens de erro possuem tradução em espanhol e convertem quando o idioma muda', () => {
+  const es = getTranslations('es-CL');
+  assert.equal(
+    es.pdfUpload.errors.sessionExpired,
+    'Tu sesión expiró. Inicia sesión nuevamente para subir el PDF.',
+  );
+  assert.equal(
+    translateErrorMessage(
+      'Não foi possível salvar a resposta. Tente novamente.',
+      'es-CL',
+    ),
+    'No fue posible guardar la respuesta. Inténtalo de nuevo.',
+  );
 });

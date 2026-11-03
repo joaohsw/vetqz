@@ -6,6 +6,8 @@ import secrets
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from app.config import settings
+from app.localization import api_message, resolve_language
+from app.schemas.language import SupportedLanguage
 from app.schemas.material import CleanupExpiredMaterialsResponse, StudyMaterialResponse
 from app.services.auth_service import require_current_user
 from app.services.storage_service import delete_audio, delete_pdf
@@ -20,9 +22,12 @@ router = APIRouter()
     summary="Lista os materiais temporários do aluno",
 )
 async def list_materials_endpoint(
+    language: SupportedLanguage | None = None,
+    accept_language: str | None = Header(default=None),
     user_id: str = Depends(require_current_user),
 ):
     """Mostra somente PDFs ainda disponíveis e pertencentes ao usuário atual."""
+    resolved_language = resolve_language(language, accept_language)
     now = datetime.now(UTC).isoformat()
     try:
         result = (
@@ -39,7 +44,7 @@ async def list_materials_endpoint(
     except Exception as error:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Não foi possível carregar seus materiais recentes.",
+            detail=api_message(resolved_language, "materials_load_failed"),
         ) from error
 
 
