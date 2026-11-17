@@ -54,4 +54,11 @@ test('mensagens de erro possuem tradução em espanhol e convertem quando o idio
     ),
     'No fue posible guardar la respuesta. Inténtalo de nuevo.',
   );
+  assert.equal(
+    translateErrorMessage(
+      'Selecione uma alternativa válida para enviar sua resposta.',
+      'es-CL',
+    ),
+    'Selecciona una alternativa válida para enviar tu respuesta.',
+  );
 });

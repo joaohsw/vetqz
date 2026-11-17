@@ -7,6 +7,13 @@ from pydantic import BaseModel, Field
 
 from app.schemas.difficulty import DEFAULT_DIFFICULTY, Difficulty
 from app.schemas.language import DEFAULT_LANGUAGE, SupportedLanguage
+from app.schemas.question_type import (
+    DEFAULT_QUESTION_MODE,
+    DEFAULT_QUESTION_TYPE,
+    MultipleChoiceOption,
+    QuestionMode,
+    QuestionType,
+)
 
 FeedbackMode = Literal["immediate", "final"]
 
@@ -16,6 +23,7 @@ class CreateStudySessionRequest(BaseModel):
     topic_titles: list[str] = Field(..., min_length=1, max_length=20)
     planned_question_count: int = Field(..., ge=1, le=20)
     difficulty: Difficulty = DEFAULT_DIFFICULTY
+    question_mode: QuestionMode = DEFAULT_QUESTION_MODE
     feedback_mode: FeedbackMode = "immediate"
     language: SupportedLanguage = DEFAULT_LANGUAGE
 
@@ -36,6 +44,10 @@ class StudySessionAttemptResponse(BaseModel):
     score: float | None = Field(default=None, ge=0, le=10)
     feedback: str = ""
     model_answer: str = ""
+    question_type: QuestionType = DEFAULT_QUESTION_TYPE
+    options: list[MultipleChoiceOption] = Field(default_factory=list)
+    correct_option_id: str | None = None
+    selected_option_id: str | None = None
     topic_title: str | None = None
     question_position: int | None = Field(default=None, ge=1)
     source_excerpt: str | None = None
@@ -51,6 +63,7 @@ class StudySessionHistoryResponse(BaseModel):
     topic_titles: list[str] = Field(default_factory=list)
     planned_question_count: int = Field(ge=1)
     difficulty: Difficulty = DEFAULT_DIFFICULTY
+    question_mode: QuestionMode = DEFAULT_QUESTION_MODE
     feedback_mode: FeedbackMode = "immediate"
     answered_question_count: int = Field(ge=0)
     average_score: float | None = Field(default=None, ge=0, le=10)

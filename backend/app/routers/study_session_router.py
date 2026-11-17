@@ -1,11 +1,13 @@
 """Criação e finalização de sessões de estudo para o histórico do aluno."""
 
 from datetime import UTC, datetime
+import json
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from app.localization import api_message, resolve_language
 from app.schemas.language import SupportedLanguage
+from app.schemas.question_type import DEFAULT_QUESTION_MODE, DEFAULT_QUESTION_TYPE
 from app.schemas.study_session import (
     CreateStudySessionRequest,
     StudySessionAttemptResponse,
@@ -17,6 +19,16 @@ from app.services.auth_service import require_current_user
 from app.services.supabase_client import get_supabase_client
 
 router = APIRouter()
+
+_MC_SESSION_COLUMNS = ("question_mode",)
+_MC_ATTEMPT_COLUMNS = ("question_type", "options", "correct_option_id", "selected_option_id")
+
+
+def _is_missing_column_error(error: Exception, columns: tuple[str, ...]) -> bool:
+    message = str(error)
+    return any(column in message for column in columns) and (
+        "PGRST204" in message or "42703" in message or "column" in message.lower()
+    )
 
 
 @router.get(
@@ -34,37 +46,62 @@ async def list_study_sessions_endpoint(
     resolved_language = resolve_language(language, accept_language)
     supabase = get_supabase_client()
     try:
-        sessions_query = (
-            supabase.table("study_sessions")
-            .select(
-                "id, document_id, document_filename, topic_titles, planned_question_count, "
-                "difficulty, feedback_mode, status, started_at, completed_at"
-            )
-            .eq("user_id", user_id)
-            .order("started_at", desc=True)
-            .limit(20)
+        base_session_columns = (
+            "id, document_id, document_filename, topic_titles, planned_question_count, "
+            "difficulty, feedback_mode, status, started_at, completed_at"
         )
-        if session_id:
-            sessions_query = sessions_query.eq("id", session_id)
-        sessions = sessions_query.execute().data or []
+        try:
+            sessions_query = (
+                supabase.table("study_sessions")
+                .select(f"{base_session_columns}, question_mode")
+                .eq("user_id", user_id)
+                .order("started_at", desc=True)
+                .limit(20)
+            )
+            if session_id:
+                sessions_query = sessions_query.eq("id", session_id)
+            sessions = sessions_query.execute().data or []
+        except Exception as error:
+            if not _is_missing_column_error(error, _MC_SESSION_COLUMNS):
+                raise
+            sessions_query = (
+                supabase.table("study_sessions")
+                .select(base_session_columns)
+                .eq("user_id", user_id)
+                .order("started_at", desc=True)
+                .limit(20)
+            )
+            if session_id:
+                sessions_query = sessions_query.eq("id", session_id)
+            sessions = sessions_query.execute().data or []
         if not sessions:
             return []
 
         session_ids = [session["id"] for session in sessions]
         attempts = []
+        base_attempt_columns = (
+            "id, study_session_id, score, question, reference_answer, topic_title, "
+            "question_position, source_excerpt, source_page, created_at, updated_at, "
+            "student_answer, feedback, model_answer"
+        )
+        attempt_columns = f"{base_attempt_columns}, question_type, options, correct_option_id, selected_option_id"
         offset = 0
         while True:
-            page = (
-                supabase.table("quiz_sessions")
-                .select("id, study_session_id, score, question, reference_answer, topic_title, "
-                        "question_position, source_excerpt, source_page, created_at, updated_at, "
-                        "student_answer, feedback, model_answer")
-                .eq("user_id", user_id)
-                .in_("study_session_id", session_ids)
-                .order("id")
-                .range(offset, offset + 199)
-                .execute()
-            ).data or []
+            try:
+                page = (
+                    supabase.table("quiz_sessions")
+                    .select(attempt_columns)
+                    .eq("user_id", user_id)
+                    .in_("study_session_id", session_ids)
+                    .order("id")
+                    .range(offset, offset + 199)
+                    .execute()
+                ).data or []
+            except Exception as error:
+                if attempt_columns == base_attempt_columns or not _is_missing_column_error(error, _MC_ATTEMPT_COLUMNS):
+                    raise
+                attempt_columns = base_attempt_columns
+                continue
             attempts.extend(page)
             if not page:
                 break
@@ -85,12 +122,22 @@ async def list_study_sessions_endpoint(
     }
 
     def response_attempt(attempt):
+        raw_options = attempt.get("options")
+        if isinstance(raw_options, str):
+            try:
+                raw_options = json.loads(raw_options)
+            except json.JSONDecodeError:
+                raw_options = []
         return StudySessionAttemptResponse(**{
             **{key: value for key, value in attempt.items() if key in StudySessionAttemptResponse.model_fields},
             "score": attempt.get("score") if valid_score(attempt.get("score")) else None,
             "student_answer": attempt.get("student_answer") or "",
             "feedback": attempt.get("feedback") or "",
             "model_answer": attempt.get("model_answer") or "",
+            "question_type": attempt.get("question_type") or DEFAULT_QUESTION_TYPE,
+            "options": raw_options if isinstance(raw_options, list) else [],
+            "correct_option_id": attempt.get("correct_option_id"),
+            "selected_option_id": attempt.get("selected_option_id"),
         })
 
     return [
@@ -101,6 +148,7 @@ async def list_study_sessions_endpoint(
             topic_titles=session.get("topic_titles") or [],
             planned_question_count=session["planned_question_count"],
             difficulty=session.get("difficulty", "medium"),
+            question_mode=session.get("question_mode") or DEFAULT_QUESTION_MODE,
             feedback_mode=session.get("feedback_mode", "immediate"),
             answered_question_count=metrics[session["id"]][2],
             average_score=metrics[session["id"]][3],
@@ -169,17 +217,25 @@ async def create_study_session_endpoint(
         )
 
     document = document_result.data[0]
+    session_payload = {
+        "user_id": user_id,
+        "document_id": document["id"],
+        "document_filename": document["filename"],
+        "topic_titles": request.topic_titles,
+        "planned_question_count": request.planned_question_count,
+        "difficulty": request.difficulty,
+        "question_mode": request.question_mode,
+        "feedback_mode": request.feedback_mode,
+        "language": request.language,
+    }
     try:
-        result = supabase.table("study_sessions").insert({
-            "user_id": user_id,
-            "document_id": document["id"],
-            "document_filename": document["filename"],
-            "topic_titles": request.topic_titles,
-            "planned_question_count": request.planned_question_count,
-            "difficulty": request.difficulty,
-            "feedback_mode": request.feedback_mode,
-            "language": request.language,
-        }).execute()
+        try:
+            result = supabase.table("study_sessions").insert(session_payload).execute()
+        except Exception as error:
+            if not _is_missing_column_error(error, _MC_SESSION_COLUMNS):
+                raise
+            legacy_payload = {k: v for k, v in session_payload.items() if k != "question_mode"}
+            result = supabase.table("study_sessions").insert(legacy_payload).execute()
         study_session = result.data[0]
     except Exception as error:
         raise HTTPException(

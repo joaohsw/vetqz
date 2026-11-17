@@ -22,6 +22,11 @@ from app.localization import api_message
 from app.schemas.evaluation import EvaluateAnswerResponse
 from app.schemas.difficulty import DEFAULT_DIFFICULTY, Difficulty
 from app.schemas.language import DEFAULT_LANGUAGE, SupportedLanguage
+from app.schemas.question_type import (
+    DEFAULT_QUESTION_TYPE,
+    MultipleChoiceOption,
+    QuestionType,
+)
 from app.services.gemini_service import evaluate_answer
 from app.services.auth_service import require_current_user
 from app.services.study_metrics import valid_score
@@ -33,6 +38,14 @@ router = APIRouter()
 
 # MIME types válidos para áudio
 ALLOWED_AUDIO_TYPES = {"audio/webm", "audio/wav", "audio/mp4", "audio/mpeg", "audio/ogg"}
+_MC_ATTEMPT_COLUMNS = ("question_type", "options", "correct_option_id", "selected_option_id")
+
+
+def _is_missing_mc_column_error(error: Exception) -> bool:
+    message = str(error)
+    return any(column in message for column in _MC_ATTEMPT_COLUMNS) and (
+        "PGRST204" in message or "42703" in message or "column" in message.lower()
+    )
 
 
 def normalize_content_type(content_type: str | None) -> str:
@@ -148,11 +161,99 @@ def get_owned_study_session(
     return result.data[0]["id"]
 
 
+def evaluate_multiple_choice_answer(
+    reference_answer: str,
+    student_answer: str,
+    options_json: str | None,
+    correct_option_id: str | None,
+    selected_option_id: str | None,
+    language: SupportedLanguage,
+) -> tuple[dict, str, list[MultipleChoiceOption], str, str]:
+    """Avalia deterministicamente uma questão de múltipla escolha sem chamar o Gemini."""
+    try:
+        raw_options = json.loads(options_json) if options_json else []
+        if not isinstance(raw_options, list):
+            raise ValueError("Options must be a JSON array")
+        parsed_options = [
+            MultipleChoiceOption(
+                id=str(item["id"]).strip().upper(),
+                text=item["text"],
+                rationale=item.get("rationale"),
+            )
+            for item in raw_options
+        ]
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=api_message(language, "invalid_multiple_choice_options"),
+        ) from error
+
+    options_by_id = {opt.id: opt for opt in parsed_options}
+    if len(parsed_options) < 2 or len(options_by_id) != len(parsed_options):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=api_message(language, "invalid_multiple_choice_options"),
+        )
+
+    normalized_correct = (correct_option_id or "").strip().upper()
+    correct_opt = options_by_id.get(normalized_correct)
+    if not correct_opt:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=api_message(language, "invalid_multiple_choice_options"),
+        )
+
+    normalized_selected = (selected_option_id or student_answer or "").strip().upper()
+    selected_opt = options_by_id.get(normalized_selected)
+    if not selected_opt:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=api_message(language, "invalid_multiple_choice_selection"),
+        )
+
+    is_correct = selected_opt.id == correct_opt.id
+    score = 10.0 if is_correct else 0.0
+    if is_correct:
+        feedback = api_message(
+            language,
+            "mc_feedback_correct",
+            option_id=selected_opt.id,
+            option_text=selected_opt.text,
+        )
+    else:
+        feedback = api_message(
+            language,
+            "mc_feedback_incorrect",
+            option_id=selected_opt.id,
+            option_text=selected_opt.text,
+        )
+        if selected_opt.rationale:
+            feedback = f"{feedback} {selected_opt.rationale}"
+
+    explanation = reference_answer.strip()
+    header = f"{correct_opt.id}) {correct_opt.text}"
+    if explanation and not explanation.startswith(header):
+        model_answer = f"{header}\n\n{explanation}"
+    else:
+        model_answer = explanation or header
+
+    canonical_student_answer = f"{selected_opt.id}) {selected_opt.text}"
+    result = {
+        "score": score,
+        "feedback": feedback,
+        "strengths": [],
+        "improvements": [],
+        "next_step": "",
+        "model_answer": model_answer,
+    }
+    return result, canonical_student_answer, parsed_options, correct_opt.id, selected_opt.id
+
+
 @router.post(
     "/evaluate-answer",
     response_model=EvaluateAnswerResponse,
     summary="Avalia a resposta do aluno",
-    description="Compara a resposta do aluno com a referência usando Gemini e retorna score + feedback.",
+    description="Compara a resposta do aluno com a referência usando Gemini (ou gabarito em múltipla escolha) e retorna score + feedback.",
 )
 async def evaluate_answer_endpoint(
     question: str = Form(...),
@@ -160,6 +261,10 @@ async def evaluate_answer_endpoint(
     student_answer: str = Form(...),
     language: SupportedLanguage = Form(DEFAULT_LANGUAGE),
     difficulty: Difficulty = Form(DEFAULT_DIFFICULTY),
+    question_type: QuestionType = Form(DEFAULT_QUESTION_TYPE),
+    options: str | None = Form(None),
+    correct_option_id: str | None = Form(None),
+    selected_option_id: str | None = Form(None),
     document_id: str | None = Form(None),
     chunk_index: int | None = Form(None),
     source_excerpt: str | None = Form(None),
@@ -216,38 +321,59 @@ async def evaluate_answer_endpoint(
             detail=api_message(language, "retry_attempt_question_mismatch"),
         )
 
-    # --- VALIDAÇÃO E UPLOAD DO ÁUDIO (opcional) ---
-    if audio and audio.filename:
-        audio_bytes, content_type = await read_validated_audio(audio, language)
+    parsed_options: list[MultipleChoiceOption] = []
+    resolved_correct_option_id: str | None = None
+    resolved_selected_option_id: str | None = None
+    persisted_student_answer = student_answer
 
-        # Upload ao Storage
-        try:
-            audio_path = upload_audio(audio_bytes, content_type)
-        except Exception as e:
-            # Não bloqueia a avaliação se o upload falhar
-            print(f"⚠️ Erro ao salvar áudio no Storage: {e}")
-
-    # --- AVALIAÇÃO VIA GEMINI ---
-    try:
-        gemini_result = await evaluate_answer(
-            question=question,
+    if question_type == "multiple_choice":
+        (
+            gemini_result,
+            persisted_student_answer,
+            parsed_options,
+            resolved_correct_option_id,
+            resolved_selected_option_id,
+        ) = evaluate_multiple_choice_answer(
             reference_answer=reference_answer,
             student_answer=student_answer,
+            options_json=options,
+            correct_option_id=correct_option_id,
+            selected_option_id=selected_option_id,
             language=language,
-            difficulty=difficulty,
         )
-        if not valid_score(gemini_result.get("score")):
-            raise ValueError(api_message(language, "invalid_evaluation_score"))
-    except Exception as e:
-        if audio_path:
+    else:
+        # --- VALIDAÇÃO E UPLOAD DO ÁUDIO (opcional) ---
+        if audio and audio.filename:
+            audio_bytes, content_type = await read_validated_audio(audio, language)
+
+            # Upload ao Storage
             try:
-                delete_audio(audio_path)
-            except Exception:
-                pass
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=api_message(language, 'answer_evaluation', error=str(e)),
-        )
+                audio_path = upload_audio(audio_bytes, content_type)
+            except Exception as e:
+                # Não bloqueia a avaliação se o upload falhar
+                print(f"⚠️ Erro ao salvar áudio no Storage: {e}")
+
+        # --- AVALIAÇÃO VIA GEMINI ---
+        try:
+            gemini_result = await evaluate_answer(
+                question=question,
+                reference_answer=reference_answer,
+                student_answer=student_answer,
+                language=language,
+                difficulty=difficulty,
+            )
+            if not valid_score(gemini_result.get("score")):
+                raise ValueError(api_message(language, "invalid_evaluation_score"))
+        except Exception as e:
+            if audio_path:
+                try:
+                    delete_audio(audio_path)
+                except Exception:
+                    pass
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=api_message(language, 'answer_evaluation', error=str(e)),
+            )
 
     # --- PERSISTÊNCIA DA SESSÃO ---
     try:
@@ -261,10 +387,14 @@ async def evaluate_answer_endpoint(
             "question_position": question_position,
             "question": question,
             "reference_answer": reference_answer,
-            "student_answer": student_answer,
+            "student_answer": persisted_student_answer,
             "score": gemini_result["score"],
             "feedback": gemini_result.get("feedback", ""),
             "model_answer": gemini_result.get("model_answer", ""),
+            "question_type": question_type,
+            "options": [opt.model_dump() for opt in parsed_options] if parsed_options else None,
+            "correct_option_id": resolved_correct_option_id,
+            "selected_option_id": resolved_selected_option_id,
             "audio_path": audio_path,
             "audio_expires_at": (
                 (datetime.now(UTC) + timedelta(days=settings.material_retention_days)).isoformat()
@@ -273,22 +403,34 @@ async def evaluate_answer_endpoint(
             "source_excerpt": source["excerpt"] if source else None,
             "source_page": source["page_number"] if source else None,
         }
+        def persist_attempt(payload: dict):
+            if retry_attempt_id:
+                return (
+                    supabase.table("quiz_sessions")
+                    .update(payload)
+                    .eq("id", retry_attempt_id)
+                    .eq("user_id", user_id)
+                    .execute()
+                )
+            return supabase.table("quiz_sessions").insert(payload).execute()
+
+        try:
+            saved_attempt = persist_attempt(attempt_data)
+        except Exception as error:
+            if not _is_missing_mc_column_error(error):
+                raise
+            legacy_attempt_data = {
+                key: value for key, value in attempt_data.items() if key not in _MC_ATTEMPT_COLUMNS
+            }
+            saved_attempt = persist_attempt(legacy_attempt_data)
+
         if retry_attempt_id:
-            saved_attempt = (
-                supabase.table("quiz_sessions")
-                .update(attempt_data)
-                .eq("id", retry_attempt_id)
-                .eq("user_id", user_id)
-                .execute()
-            )
             previous_audio_path = previous_attempt.get("audio_path") if previous_attempt else None
             if previous_audio_path and previous_audio_path != audio_path:
                 try:
                     delete_audio(previous_audio_path)
                 except Exception:
                     pass
-        else:
-            saved_attempt = supabase.table("quiz_sessions").insert(attempt_data).execute()
         if not saved_attempt.data:
             raise RuntimeError("Attempt was not saved")
         attempt_id = saved_attempt.data[0]["id"]
@@ -311,5 +453,9 @@ async def evaluate_answer_endpoint(
         improvements=gemini_result.get("improvements", []),
         next_step=gemini_result.get("next_step", ""),
         model_answer=gemini_result.get("model_answer", ""),
+        question_type=question_type,
+        options=parsed_options,
+        correct_option_id=resolved_correct_option_id,
+        selected_option_id=resolved_selected_option_id,
         source=source,
     )

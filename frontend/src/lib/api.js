@@ -116,9 +116,10 @@ export async function generateQuestion(documentId, {
   chunkIndices = null,
   topicTitle = null,
   difficulty = 'medium',
+  questionType = 'descriptive',
   language = DEFAULT_LANGUAGE,
 } = {}) {
-  const body = { document_id: documentId, difficulty, language };
+  const body = { document_id: documentId, difficulty, question_type: questionType, language };
   if (chunkIndex !== null) body.chunk_index = chunkIndex;
   if (chunkIndices !== null) body.chunk_indices = chunkIndices;
   if (topicTitle) body.topic_title = topicTitle;
@@ -161,6 +162,10 @@ export async function evaluateAnswer({
   questionPosition = null,
   retryAttemptId = null,
   difficulty = 'medium',
+  questionType = 'descriptive',
+  options = [],
+  correctOptionId = null,
+  selectedOptionId = null,
   language = DEFAULT_LANGUAGE,
 }) {
   const formData = new FormData();
@@ -168,7 +173,13 @@ export async function evaluateAnswer({
   formData.append('reference_answer', referenceAnswer);
   formData.append('student_answer', studentAnswer);
   formData.append('difficulty', difficulty);
+  formData.append('question_type', questionType);
   formData.append('language', language);
+  if (questionType === 'multiple_choice') {
+    formData.append('options', JSON.stringify(options || []));
+    if (correctOptionId) formData.append('correct_option_id', correctOptionId);
+    if (selectedOptionId) formData.append('selected_option_id', selectedOptionId);
+  }
   if (documentId) formData.append('document_id', documentId);
   if (Number.isInteger(chunkIndex)) formData.append('chunk_index', String(chunkIndex));
   if (sourceExcerpt) formData.append('source_excerpt', sourceExcerpt);
@@ -237,6 +248,7 @@ export async function createStudySession({
   topicTitles,
   plannedQuestionCount,
   difficulty = 'medium',
+  questionMode = 'descriptive',
   feedbackMode = 'immediate',
   language = DEFAULT_LANGUAGE,
 }) {
@@ -248,6 +260,7 @@ export async function createStudySession({
       topic_titles: topicTitles,
       planned_question_count: plannedQuestionCount,
       difficulty,
+      question_mode: questionMode,
       feedback_mode: feedbackMode,
       language,
     }),

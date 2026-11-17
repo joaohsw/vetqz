@@ -17,6 +17,7 @@ import {
 
 import AudioRecorder from '../components/AudioRecorder';
 import ContentWarningModal from '../components/ContentWarningModal';
+import MultipleChoiceOptions from '../components/MultipleChoiceOptions';
 import PdfUpload from '../components/PdfUpload';
 import QuestionCard from '../components/QuestionCard';
 import ResultCard from '../components/ResultCard';
@@ -56,13 +57,76 @@ const DIFFICULTIES = {
   HARD: 'hard',
 };
 
+const QUESTION_MODES = {
+  DESCRIPTIVE: 'descriptive',
+  MULTIPLE_CHOICE: 'multiple_choice',
+  MIXED: 'mixed',
+};
+
+const QUESTION_TYPES = {
+  DESCRIPTIVE: 'descriptive',
+  MULTIPLE_CHOICE: 'multiple_choice',
+};
+
 const MAX_SESSION_QUESTIONS = 20;
 
-function createQuestionPlan(selectedTopics, questionCount) {
-  return Array.from(
-    { length: questionCount },
-    (_, index) => selectedTopics[index % selectedTopics.length].id,
-  );
+function createQuestionPlan(
+  selectedTopics,
+  questionCount,
+  questionMode = QUESTION_MODES.DESCRIPTIVE,
+  existingTypesByPosition = {},
+) {
+  const slots = Array.from({ length: questionCount }, (_, index) => ({
+    topicId: selectedTopics[index % selectedTopics.length].id,
+    questionType:
+      existingTypesByPosition[index]
+      || (questionMode === QUESTION_MODES.MULTIPLE_CHOICE
+        ? QUESTION_TYPES.MULTIPLE_CHOICE
+        : QUESTION_TYPES.DESCRIPTIVE),
+  }));
+
+  if (questionMode !== QUESTION_MODES.MIXED) {
+    return slots;
+  }
+
+  const remainingPositions = [];
+  let existingMc = 0;
+  let existingDesc = 0;
+  for (let index = 0; index < questionCount; index += 1) {
+    const fixedType = existingTypesByPosition[index];
+    if (fixedType === QUESTION_TYPES.MULTIPLE_CHOICE) existingMc += 1;
+    else if (fixedType === QUESTION_TYPES.DESCRIPTIVE) existingDesc += 1;
+    else remainingPositions.push(index);
+  }
+
+  if (!remainingPositions.length) {
+    return slots;
+  }
+
+  let idealMc;
+  if (questionCount % 2 === 0) {
+    idealMc = questionCount / 2;
+  } else if (existingMc > existingDesc) {
+    idealMc = Math.ceil(questionCount / 2);
+  } else if (existingDesc > existingMc) {
+    idealMc = Math.floor(questionCount / 2);
+  } else {
+    idealMc = Math.random() < 0.5 ? Math.ceil(questionCount / 2) : Math.floor(questionCount / 2);
+  }
+
+  const neededMc = Math.max(0, Math.min(remainingPositions.length, idealMc - existingMc));
+  const mixedTypes = Array.from({ length: remainingPositions.length }, (_, idx) => (
+    idx < neededMc ? QUESTION_TYPES.MULTIPLE_CHOICE : QUESTION_TYPES.DESCRIPTIVE
+  ));
+  for (let i = mixedTypes.length - 1; i > 0; i -= 1) {
+    const swapIndex = Math.floor(Math.random() * (i + 1));
+    [mixedTypes[i], mixedTypes[swapIndex]] = [mixedTypes[swapIndex], mixedTypes[i]];
+  }
+  remainingPositions.forEach((position, idx) => {
+    slots[position].questionType = mixedTypes[idx];
+  });
+
+  return slots;
 }
 
 export default function Home({ language, onProgressChange, resumeRequest, onResumeHandled }) {
@@ -85,6 +149,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
   // Session preferences and progress
   const [questionCount, setQuestionCount] = useState(1);
   const [difficulty, setDifficulty] = useState(DIFFICULTIES.MEDIUM);
+  const [questionMode, setQuestionMode] = useState(QUESTION_MODES.DESCRIPTIVE);
   const [feedbackMode, setFeedbackMode] = useState(FEEDBACK_MODES.IMMEDIATE);
   const [questionPlan, setQuestionPlan] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -96,6 +161,10 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
   const [activeTopic, setActiveTopic] = useState(null);
   const [question, setQuestion] = useState('');
   const [referenceAnswer, setReferenceAnswer] = useState('');
+  const [questionType, setQuestionType] = useState(QUESTION_TYPES.DESCRIPTIVE);
+  const [options, setOptions] = useState([]);
+  const [correctOptionId, setCorrectOptionId] = useState(null);
+  const [selectedOptionId, setSelectedOptionId] = useState(null);
   const [chunkUsed, setChunkUsed] = useState('');
   const [chunkIndex, setChunkIndex] = useState(null);
   const [sourceExcerpt, setSourceExcerpt] = useState('');
@@ -139,14 +208,18 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
   }, [onProgressChange, progressKey]);
 
   const snapshotQuestion = (overrides = {}) => ({
-    activeTopic, question, referenceAnswer, chunkUsed, chunkIndex, sourceExcerpt,
-    retryAttemptId, studentAnswer, audioBlob, result, ...overrides,
+    activeTopic, question, referenceAnswer, questionType, options, correctOptionId, selectedOptionId,
+    chunkUsed, chunkIndex, sourceExcerpt, retryAttemptId, studentAnswer, audioBlob, result, ...overrides,
   });
 
   const restoreQuestion = (entry) => {
     setActiveTopic(entry.activeTopic);
     setQuestion(entry.question);
     setReferenceAnswer(entry.referenceAnswer);
+    setQuestionType(entry.questionType || QUESTION_TYPES.DESCRIPTIVE);
+    setOptions(entry.options || []);
+    setCorrectOptionId(entry.correctOptionId || null);
+    setSelectedOptionId(entry.selectedOptionId || null);
     setChunkUsed(entry.chunkUsed || '');
     setChunkIndex(entry.chunkIndex ?? null);
     setSourceExcerpt(entry.sourceExcerpt || '');
@@ -161,6 +234,10 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
     setActiveTopic(null);
     setQuestion('');
     setReferenceAnswer('');
+    setQuestionType(QUESTION_TYPES.DESCRIPTIVE);
+    setOptions([]);
+    setCorrectOptionId(null);
+    setSelectedOptionId(null);
     setChunkUsed('');
     setChunkIndex(null);
     setSourceExcerpt('');
@@ -217,14 +294,33 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
             } : null;
             questionCache.current[position] = {
               activeTopic: { id: 'saved-question', title: saved.topicTitle || '' },
-              question: saved.question, referenceAnswer: saved.referenceAnswer,
-              sourceExcerpt: saved.sourceExcerpt, retryAttemptId: saved.id,
-              studentAnswer: saved.studentAnswer || '', result: evaluation,
+              question: saved.question,
+              referenceAnswer: saved.referenceAnswer,
+              questionType: saved.questionType || QUESTION_TYPES.DESCRIPTIVE,
+              options: saved.options || [],
+              correctOptionId: saved.correctOptionId || null,
+              selectedOptionId: saved.selectedOptionId || null,
+              sourceExcerpt: saved.sourceExcerpt,
+              retryAttemptId: saved.id,
+              studentAnswer: saved.studentAnswer || '',
+              result: evaluation,
             };
           }
           for (const [position, entry] of Object.entries(questionCache.current)) {
-            if (entry.result) restoredResults.push({ position: Number(position), topicTitle: entry.activeTopic.title, question: entry.question, result: entry.result });
+            if (entry.result) {
+              restoredResults.push({
+                position: Number(position),
+                topicTitle: entry.activeTopic.title,
+                question: entry.question,
+                questionType: entry.questionType,
+                options: entry.options,
+                correctOptionId: entry.correctOptionId,
+                selectedOptionId: entry.selectedOptionId,
+                result: entry.result,
+              });
+            }
           }
+          const resumeQuestionMode = resumeRequest.questionMode || QUESTION_MODES.DESCRIPTIVE;
           setSessionResults(restoredResults.sort((a, b) => a.position - b.position));
           setDocumentId(resumeRequest.documentId);
           setDocumentName(resumeRequest.documentName || 'PDF');
@@ -233,11 +329,20 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
           setSelectedTopicIds([]);
           setQuestionCount(plannedQuestionCount);
           setDifficulty(resumeRequest.difficulty || DIFFICULTIES.MEDIUM);
+          setQuestionMode(resumeQuestionMode);
           setFeedbackMode(resumeRequest.feedbackMode || FEEDBACK_MODES.IMMEDIATE);
           setStudySessionId(resumeRequest.studySessionId || null);
           setQuestionPlan(Array.from(
             { length: plannedQuestionCount },
-            (_, index) => (index === savedQuestionIndex ? 'saved-question' : null),
+            (_, index) => {
+              const cachedEntry = questionCache.current[index];
+              return {
+                topicId: index === savedQuestionIndex ? 'saved-question' : null,
+                questionType: cachedEntry?.questionType || (resumeQuestionMode === QUESTION_MODES.MULTIPLE_CHOICE
+                  ? QUESTION_TYPES.MULTIPLE_CHOICE
+                  : QUESTION_TYPES.DESCRIPTIVE),
+              };
+            },
           ));
           setCurrentQuestionIndex(savedQuestionIndex);
           setSavedSessionContinuation({
@@ -252,6 +357,10 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
           setChunkIndex(null);
           setSourceExcerpt(attempt.sourceExcerpt || '');
           const cached = questionCache.current[savedQuestionIndex];
+          setQuestionType(cached?.questionType || attempt.questionType || QUESTION_TYPES.DESCRIPTIVE);
+          setOptions(cached?.options || attempt.options || []);
+          setCorrectOptionId(cached?.correctOptionId || attempt.correctOptionId || null);
+          setSelectedOptionId(cached?.selectedOptionId || attempt.selectedOptionId || null);
           setRetryAttemptId(cached?.retryAttemptId || resumeRequest.retryAttemptId || attempt.id || null);
           setStudentAnswer(cached?.studentAnswer || '');
           setResult(cached?.result || null);
@@ -284,6 +393,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
         setSelectedTopicIds(restoredTopicIds);
         setQuestionCount(restoredQuestionCount);
         setDifficulty(resumeRequest.difficulty || DIFFICULTIES.MEDIUM);
+        setQuestionMode(resumeRequest.questionMode || QUESTION_MODES.DESCRIPTIVE);
         setFeedbackMode(resumeRequest.feedbackMode || FEEDBACK_MODES.IMMEDIATE);
         setSavedSessionContinuation(null);
         setStep(analysis.is_veterinary === false ? STEPS.CONTENT_WARNING : STEPS.SETUP);
@@ -309,7 +419,12 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
       restoreQuestion(questionCache.current[position]);
       return;
     }
-    const topicId = plan[position];
+    const planEntry = plan[position];
+    const topicId = typeof planEntry === 'string' ? planEntry : planEntry?.topicId;
+    const targetQuestionType = (typeof planEntry === 'object' ? planEntry?.questionType : null)
+      || (questionMode === QUESTION_MODES.MULTIPLE_CHOICE
+        ? QUESTION_TYPES.MULTIPLE_CHOICE
+        : QUESTION_TYPES.DESCRIPTIVE);
     const topic = topicList.find((item) => item.id === topicId);
     if (!topic) {
       setError(copy.home.sessionTopicError);
@@ -327,11 +442,16 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
         chunkIndices: topic.chunk_indices,
         topicTitle: topic.title,
         difficulty,
+        questionType: targetQuestionType,
         language,
       });
       setActiveTopic(topic);
       setQuestion(data.question);
       setReferenceAnswer(data.reference_answer);
+      setQuestionType(data.question_type || targetQuestionType);
+      setOptions(data.options || []);
+      setCorrectOptionId(data.correct_option_id || null);
+      setSelectedOptionId(null);
       setChunkUsed(data.chunk_used);
       setChunkIndex(data.chunk_index);
       setSourceExcerpt(data.source?.excerpt || '');
@@ -407,10 +527,11 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
         topicTitles: selectedTopics.map((topic) => topic.title),
         plannedQuestionCount: totalQuestions,
         difficulty,
+        questionMode,
         feedbackMode,
         language,
       });
-      const plan = createQuestionPlan(selectedTopics, totalQuestions);
+      const plan = createQuestionPlan(selectedTopics, totalQuestions, questionMode);
       questionCache.current = {};
       setStudySessionId(studySession.id);
       setQuestionPlan(plan);
@@ -447,9 +568,14 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
       1,
       Math.min(savedSessionContinuation?.plannedQuestionCount || 1, MAX_SESSION_QUESTIONS),
     );
+    const existingTypesByPosition = Object.fromEntries(
+      Object.entries(questionCache.current)
+        .filter(([, entry]) => entry?.questionType)
+        .map(([position, entry]) => [Number(position), entry.questionType]),
+    );
     return {
       topics: restoredTopics,
-      plan: createQuestionPlan(restoredTopics, totalQuestions),
+      plan: createQuestionPlan(restoredTopics, totalQuestions, questionMode, existingTypesByPosition),
       totalQuestions,
     };
   };
@@ -470,9 +596,18 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
         setPersistedSummary(saved);
         setSessionResults(saved.attempts.filter((attempt) => Number.isFinite(attempt.score)).map((attempt) => ({
           position: attempt.question_position - 1,
-          topicTitle: attempt.topic_title || '', question: attempt.question,
-          result: { score: attempt.score, feedback: attempt.feedback, model_answer: attempt.model_answer,
-            source: attempt.source_excerpt ? { excerpt: attempt.source_excerpt, page_number: attempt.source_page } : null },
+          topicTitle: attempt.topic_title || '',
+          question: attempt.question,
+          questionType: attempt.question_type || QUESTION_TYPES.DESCRIPTIVE,
+          options: attempt.options || [],
+          correctOptionId: attempt.correct_option_id || null,
+          selectedOptionId: attempt.selected_option_id || null,
+          result: {
+            score: attempt.score,
+            feedback: attempt.feedback,
+            model_answer: attempt.model_answer,
+            source: attempt.source_excerpt ? { excerpt: attempt.source_excerpt, page_number: attempt.source_page } : null,
+          },
         })));
       }
       setStep(STEPS.SUMMARY);
@@ -523,7 +658,16 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
   };
 
   const handleSubmitAnswer = async () => {
-    if (!studentAnswer.trim() || busy || result) return;
+    const isMultipleChoice = questionType === QUESTION_TYPES.MULTIPLE_CHOICE;
+    const hasAnswer = isMultipleChoice ? Boolean(selectedOptionId) : Boolean(studentAnswer.trim());
+    if (!hasAnswer || busy || result) return;
+
+    const chosenOption = isMultipleChoice
+      ? options.find((opt) => opt.id === selectedOptionId)
+      : null;
+    const submittedAnswerText = isMultipleChoice
+      ? (chosenOption ? `${chosenOption.id}) ${chosenOption.text}` : selectedOptionId)
+      : studentAnswer.trim();
 
     setIsEvaluating(true);
     setError(null);
@@ -531,8 +675,8 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
       const evaluation = await evaluateAnswer({
         question,
         referenceAnswer,
-        studentAnswer: studentAnswer.trim(),
-        audioBlob,
+        studentAnswer: submittedAnswerText,
+        audioBlob: isMultipleChoice ? null : audioBlob,
         documentId,
         chunkIndex,
         sourceExcerpt,
@@ -541,12 +685,20 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
         questionPosition: currentQuestionIndex + 1,
         retryAttemptId,
         difficulty,
+        questionType,
+        options: isMultipleChoice ? options : [],
+        correctOptionId: isMultipleChoice ? correctOptionId : null,
+        selectedOptionId: isMultipleChoice ? selectedOptionId : null,
         language,
       });
       const attempt = {
         position: currentQuestionIndex,
         topicTitle: activeTopic?.title || '',
         question,
+        questionType,
+        options,
+        correctOptionId,
+        selectedOptionId,
         result: evaluation,
       };
       const results = [...sessionResults.filter((item) => item.position !== currentQuestionIndex), attempt]
@@ -555,13 +707,22 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
       setSessionResults(results);
       setPendingEdits((positions) => positions.filter((position) => position !== currentQuestionIndex));
       setRetryAttemptId(attemptId);
+      setStudentAnswer(submittedAnswerText);
       setResult(evaluation);
-      questionCache.current[currentQuestionIndex] = snapshotQuestion({ result: evaluation, retryAttemptId: attemptId });
+      questionCache.current[currentQuestionIndex] = snapshotQuestion({
+        studentAnswer: submittedAnswerText,
+        result: evaluation,
+        retryAttemptId: attemptId,
+      });
 
       if (feedbackMode === FEEDBACK_MODES.IMMEDIATE) {
         setStep(STEPS.RESULT);
       } else {
-        await advanceSession(results, { result: evaluation, retryAttemptId: attemptId });
+        await advanceSession(results, {
+          studentAnswer: submittedAnswerText,
+          result: evaluation,
+          retryAttemptId: attemptId,
+        });
       }
     } catch (requestError) {
       setError(requestError.message);
@@ -622,7 +783,11 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
       return;
     }
     questionCache.current[currentQuestionIndex] = snapshotQuestion();
-    const adjustedPlan = questionPlan.map((topicId, index) => index === nextPosition ? activeTopic.id : topicId);
+    const adjustedPlan = questionPlan.map((entry, index) => (
+      index === nextPosition
+        ? (typeof entry === 'string' ? activeTopic.id : { ...entry, topicId: activeTopic.id })
+        : entry
+    ));
     setQuestionPlan(adjustedPlan);
     await loadQuestion(nextPosition, adjustedPlan);
   };
@@ -746,6 +911,8 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
           maxQuestions={MAX_SESSION_QUESTIONS}
           difficulty={difficulty}
           onDifficultyChange={setDifficulty}
+          questionMode={questionMode}
+          onQuestionModeChange={setQuestionMode}
           feedbackMode={feedbackMode}
           onFeedbackModeChange={setFeedbackMode}
           onStart={handleStartSession}
@@ -785,6 +952,7 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
         <div className="space-y-4 animate-enter">
           <QuestionCard
             question={question}
+            questionType={questionType}
             chunkUsed={chunkUsed}
             isLoading={false}
             language={language}
@@ -796,32 +964,56 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
             </p>
           )}
 
-          <div className="space-y-4">
-            <AudioRecorder
-              key={currentQuestionIndex}
-              savedAudioBlob={audioBlob}
-              onRecordingStatusChange={setIsRecording}
-              onRecordingComplete={setAudioBlob}
-              onRecordingReset={() => {
-                setAudioBlob(null);
-                setStudentAnswer('');
-              }}
-              transcriptValue={studentAnswer}
-              onTranscriptChange={setStudentAnswer}
-              disabled={isEvaluating || Boolean(result)}
-              language={language}
-            />
-            <button
-              id="submit-audio-answer-btn"
-              type="button"
-              onClick={handleSubmitAnswer}
-              disabled={!studentAnswer.trim() || busy || Boolean(result)}
-              className="btn-primary w-full"
-            >
-              {isEvaluating ? <><span className="spinner" />{copy.home.evaluating}</> : <>{copy.home.submitVoiceAnswer}<Send className="w-4 h-4" /></>}
-            </button>
-            {result && <button type="button" onClick={handleRetryQuestion} disabled={busy} className="btn-secondary w-full">{copy.home.editAnswer}</button>}
-          </div>
+          {questionType === QUESTION_TYPES.MULTIPLE_CHOICE ? (
+            <div className="space-y-4">
+              <MultipleChoiceOptions
+                key={currentQuestionIndex}
+                name={`mc-question-${currentQuestionIndex}`}
+                options={options}
+                selectedOptionId={selectedOptionId}
+                onSelect={setSelectedOptionId}
+                disabled={isEvaluating || Boolean(result)}
+                language={language}
+              />
+              <button
+                id="submit-mc-answer-btn"
+                type="button"
+                onClick={handleSubmitAnswer}
+                disabled={!selectedOptionId || busy || Boolean(result)}
+                className="btn-primary w-full"
+              >
+                {isEvaluating ? <><span className="spinner" />{copy.home.evaluating}</> : <>{copy.home.submitAnswer}<Send className="w-4 h-4" /></>}
+              </button>
+              {result && <button type="button" onClick={handleRetryQuestion} disabled={busy} className="btn-secondary w-full">{copy.home.editAnswer}</button>}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <AudioRecorder
+                key={currentQuestionIndex}
+                savedAudioBlob={audioBlob}
+                onRecordingStatusChange={setIsRecording}
+                onRecordingComplete={setAudioBlob}
+                onRecordingReset={() => {
+                  setAudioBlob(null);
+                  setStudentAnswer('');
+                }}
+                transcriptValue={studentAnswer}
+                onTranscriptChange={setStudentAnswer}
+                disabled={isEvaluating || Boolean(result)}
+                language={language}
+              />
+              <button
+                id="submit-audio-answer-btn"
+                type="button"
+                onClick={handleSubmitAnswer}
+                disabled={!studentAnswer.trim() || busy || Boolean(result)}
+                className="btn-primary w-full"
+              >
+                {isEvaluating ? <><span className="spinner" />{copy.home.evaluating}</> : <>{copy.home.submitVoiceAnswer}<Send className="w-4 h-4" /></>}
+              </button>
+              {result && <button type="button" onClick={handleRetryQuestion} disabled={busy} className="btn-secondary w-full">{copy.home.editAnswer}</button>}
+            </div>
+          )}
         </div>
       )}
 
@@ -833,6 +1025,11 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
             score={result.score}
             feedback={result.feedback}
             modelAnswer={result.model_answer}
+            question={question}
+            questionType={questionType}
+            options={options}
+            selectedOptionId={selectedOptionId}
+            correctOptionId={correctOptionId}
             source={result.source}
             onRetryQuestion={handleRetryQuestion}
             onAnotherQuestionSameTopic={handleAnotherQuestionSameTopic}
@@ -872,6 +1069,18 @@ export default function Home({ language, onProgressChange, resumeRequest, onResu
                   <span className="text-sm font-700 text-teal-400 shrink-0">{attempt.result.score.toFixed(1)}</span>
                 </summary>
                 <div className="px-4 pb-4 border-t border-border-subtle pt-4 space-y-3">
+                  {attempt.questionType === QUESTION_TYPES.MULTIPLE_CHOICE && attempt.options?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-600 text-teal-400 mb-2">{copy.multipleChoice.optionsReview}</p>
+                      <MultipleChoiceOptions
+                        options={attempt.options}
+                        selectedOptionId={attempt.selectedOptionId}
+                        correctOptionId={attempt.correctOptionId}
+                        disabled
+                        language={language}
+                      />
+                    </div>
+                  )}
                   <div>
                     <p className="text-xs font-600 text-teal-400 mb-1">{copy.result.modelAnswer}</p>
                     <p className="text-sm text-text-2 leading-relaxed whitespace-pre-line">{attempt.result.model_answer}</p>
