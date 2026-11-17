@@ -10,6 +10,7 @@ import { getTranslations } from '../i18n';
 
 export default function QuestionCard({
   question,
+  questionType = null,
   chunkUsed = '',
   onNewQuestion,
   isLoading = false,
@@ -32,13 +33,22 @@ export default function QuestionCard({
 
   if (!question) return null;
 
+  const typeLabel = questionType ? copy.questionCard.typeLabels?.[questionType] : null;
+
   return (
     <div className="card card-accent p-6 animate-enter">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xs font-['Plus_Jakarta_Sans'] font-600 text-teal-400 uppercase tracking-widest">
-          {copy.questionCard.title}
-        </h3>
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-['Plus_Jakarta_Sans'] font-600 text-teal-400 uppercase tracking-widest">
+            {copy.questionCard.title}
+          </h3>
+          {typeLabel && (
+            <span className="rounded-md border border-border-subtle bg-surface-2 px-2 py-0.5 text-[11px] font-600 text-text-2">
+              {typeLabel}
+            </span>
+          )}
+        </div>
         {onNewQuestion && (
           <button
             id="new-question-btn"

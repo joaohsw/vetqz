@@ -45,6 +45,11 @@ export const translations = {
       studyHistoryNoScore: 'Sem nota',
       studyHistoryProgress: '{answered} de {planned} respondidas',
       studyHistoryTopics: 'Assuntos: {topics}',
+      studyHistoryModes: {
+        descriptive: 'Apenas descritivas',
+        multiple_choice: 'Apenas múltipla escolha',
+        mixed: 'Mistas (múltipla escolha e descritivas)',
+      },
       resumeStudy: 'Retomar estudos',
       retrySavedQuestion: 'Refazer última pergunta',
       repeatStudy: 'Refazer sessão',
@@ -235,6 +240,22 @@ export const translations = {
           description: 'Integração e raciocínio mais aprofundado.',
         },
       },
+      questionFormat: 'Formato das questões',
+      questionModes: {
+        multiple_choice: {
+          title: 'Apenas múltipla escolha',
+          description: 'Escolha entre 4 alternativas geradas do material.',
+        },
+        descriptive: {
+          title: 'Apenas descritivas',
+          description: 'Responda por voz ou texto com avaliação aberta.',
+        },
+        mixed: {
+          title: 'Mistas (as duas)',
+          description: 'Combina múltipla escolha e descritivas na mesma sessão.',
+        },
+      },
+      mixedSingleQuestionHint: 'Com apenas 1 questão, a sessão sorteará um dos dois formatos. Escolha 2 ou mais para misturar ambos.',
       feedbackTiming: 'Quando quer receber o feedback?',
       feedbackModes: {
         immediate: {
@@ -252,6 +273,17 @@ export const translations = {
       title: 'Pergunta',
       newQuestion: 'Nova',
       showSource: 'Ver trecho do material',
+      typeLabels: {
+        descriptive: 'Descritiva',
+        multiple_choice: 'Múltipla escolha',
+      },
+    },
+    multipleChoice: {
+      title: 'Escolha a alternativa correta',
+      selectHint: 'Selecione uma alternativa para enviar sua resposta.',
+      optionsReview: 'Revisão das alternativas',
+      yourChoice: 'Sua escolha',
+      correctOption: 'Correta',
     },
     audio: {
       title: 'Gravação de áudio',
@@ -380,6 +412,11 @@ export const translations = {
       studyHistoryNoScore: 'Sin calificación',
       studyHistoryProgress: '{answered} de {planned} respondidas',
       studyHistoryTopics: 'Temas: {topics}',
+      studyHistoryModes: {
+        descriptive: 'Solo descriptivas',
+        multiple_choice: 'Solo opción múltiple',
+        mixed: 'Mixtas (opción múltiple y descriptivas)',
+      },
       resumeStudy: 'Retomar estudio',
       retrySavedQuestion: 'Repetir última pregunta',
       repeatStudy: 'Repetir sesión',
@@ -571,6 +608,22 @@ export const translations = {
           description: 'Integración y razonamiento más profundo.',
         },
       },
+      questionFormat: 'Formato de las preguntas',
+      questionModes: {
+        multiple_choice: {
+          title: 'Solo opción múltiple',
+          description: 'Elige entre 4 alternativas generadas del material.',
+        },
+        descriptive: {
+          title: 'Solo descriptivas',
+          description: 'Responde por voz o texto con evaluación abierta.',
+        },
+        mixed: {
+          title: 'Mixtas (ambas)',
+          description: 'Combina opción múltiple y descriptivas en la misma sesión.',
+        },
+      },
+      mixedSingleQuestionHint: 'Con solo 1 pregunta, la sesión sorteará uno de los dos formatos. Elige 2 o más para combinar ambos.',
       feedbackTiming: '¿Cuándo quieres recibir la retroalimentación?',
       feedbackModes: {
         immediate: {
@@ -588,6 +641,17 @@ export const translations = {
       title: 'Pregunta',
       newQuestion: 'Nueva',
       showSource: 'Ver fragmento del material',
+      typeLabels: {
+        descriptive: 'Descriptiva',
+        multiple_choice: 'Opción múltiple',
+      },
+    },
+    multipleChoice: {
+      title: 'Elige la alternativa correcta',
+      selectHint: 'Selecciona una alternativa para enviar tu respuesta.',
+      optionsReview: 'Revisión de alternativas',
+      yourChoice: 'Tu elección',
+      correctOption: 'Correcta',
     },
     audio: {
       title: 'Grabación de audio',
@@ -774,6 +838,18 @@ const ERROR_TRANSLATION_PAIRS = [
   [
     'A tentativa não corresponde à questão informada.',
     'El intento no corresponde a la pregunta indicada.',
+  ],
+  [
+    'Não foi possível gerar 4 alternativas válidas para a questão de múltipla escolha.',
+    'No fue posible generar 4 alternativas válidas para la pregunta de opción múltiple.',
+  ],
+  [
+    'As alternativas da questão de múltipla escolha são inválidas.',
+    'Las alternativas de la pregunta de opción múltiple no son válidas.',
+  ],
+  [
+    'Selecione uma alternativa válida para enviar sua resposta.',
+    'Selecciona una alternativa válida para enviar tu respuesta.',
   ],
   [
     'Erro desconhecido',

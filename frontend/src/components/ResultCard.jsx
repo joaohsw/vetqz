@@ -5,12 +5,14 @@ import {
   ArrowRight,
   BookMarked,
   BookOpen,
+  CheckSquare,
   ChevronDown,
   RefreshCw,
   Target,
   TrendingUp,
 } from 'lucide-react';
 import { getTranslations } from '../i18n';
+import MultipleChoiceOptions from './MultipleChoiceOptions';
 
 /** Card section that expands/collapses with a smooth height transition (no native details "pop"). */
 function Collapsible({ summary, summaryClassName = '', defaultOpen = true, className = '', children }) {
@@ -178,6 +180,11 @@ export default function ResultCard({
   score,
   feedback,
   modelAnswer,
+  question = '',
+  questionType = 'descriptive',
+  options = [],
+  selectedOptionId = null,
+  correctOptionId = null,
   source,
   onRetryQuestion,
   onAnotherQuestionSameTopic,
@@ -186,7 +193,11 @@ export default function ResultCard({
   language,
 }) {
   const translations = getTranslations(language);
-  const copy = { ...translations.result, finishSession: translations.home.finishSession };
+  const copy = {
+    ...translations.result,
+    finishSession: translations.home.finishSession,
+    optionsReview: translations.multipleChoice.optionsReview,
+  };
   if (score === null || score === undefined) return null;
 
   return (
@@ -194,6 +205,29 @@ export default function ResultCard({
       <Collapsible summaryClassName="text-teal-400" summary={copy.title}>
         <ScoreCircle score={score} labels={copy.scoreLabels} />
       </Collapsible>
+
+      {questionType === 'multiple_choice' && options.length > 0 && (
+        <Collapsible
+          summaryClassName="text-teal-400"
+          summary={(
+            <>
+              <CheckSquare className="w-3.5 h-3.5" />
+              {copy.optionsReview}
+            </>
+          )}
+        >
+          {question && (
+            <p className="text-sm font-600 text-text-1 mb-3 text-pretty">{question}</p>
+          )}
+          <MultipleChoiceOptions
+            options={options}
+            selectedOptionId={selectedOptionId}
+            correctOptionId={correctOptionId}
+            disabled
+            language={language}
+          />
+        </Collapsible>
+      )}
 
       {feedback && (
         <Collapsible

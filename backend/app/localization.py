@@ -44,6 +44,11 @@ MESSAGES = {
         'invalid_topic_translation': 'Tradução de assuntos inválida',
         'incomplete_topic_translation': 'Tradução incompleta; a análise original foi preservada',
         'invalid_evaluation_score': 'A avaliação retornou uma nota inválida ou ausente',
+        'invalid_multiple_choice_question': 'Não foi possível gerar 4 alternativas válidas para a questão de múltipla escolha.',
+        'invalid_multiple_choice_options': 'As alternativas da questão de múltipla escolha são inválidas.',
+        'invalid_multiple_choice_selection': 'Selecione uma alternativa válida para enviar sua resposta.',
+        'mc_feedback_correct': 'Resposta correta! Você selecionou a alternativa {option_id} ({option_text}).',
+        'mc_feedback_incorrect': 'Resposta incorreta. Você selecionou a alternativa {option_id} ({option_text}).',
     },
     'es-CL': {
         'auth_required': 'Se requiere autenticación para acceder a tus materiales.',
@@ -87,6 +92,11 @@ MESSAGES = {
         'invalid_topic_translation': 'Traducción de temas inválida',
         'incomplete_topic_translation': 'Traducción incompleta; se conservó el análisis original',
         'invalid_evaluation_score': 'La evaluación devolvió una calificación inválida o ausente',
+        'invalid_multiple_choice_question': 'No fue posible generar 4 alternativas válidas para la pregunta de opción múltiple.',
+        'invalid_multiple_choice_options': 'Las alternativas de la pregunta de opción múltiple no son válidas.',
+        'invalid_multiple_choice_selection': 'Selecciona una alternativa válida para enviar tu respuesta.',
+        'mc_feedback_correct': '¡Respuesta correcta! Seleccionaste la alternativa {option_id} ({option_text}).',
+        'mc_feedback_incorrect': 'Respuesta incorrecta. Seleccionaste la alternativa {option_id} ({option_text}).',
     },
 }
 

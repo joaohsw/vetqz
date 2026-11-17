@@ -14,6 +14,8 @@ export default function StudySetup({
   maxQuestions,
   difficulty,
   onDifficultyChange,
+  questionMode = 'descriptive',
+  onQuestionModeChange,
   feedbackMode,
   onFeedbackModeChange,
   onStart,
@@ -166,6 +168,36 @@ export default function StudySetup({
                 ? copy.studySetup.noTopicsSelected
                 : copy.studySetup.topicLimit.replace('{max}', maxQuestions)}
             </p>
+          )}
+        </fieldset>
+
+        <fieldset>
+          <legend className="text-xs font-600 text-text-2 mb-3">{copy.studySetup.questionFormat}</legend>
+          <div className="grid sm:grid-cols-3 gap-2">
+            {['multiple_choice', 'descriptive', 'mixed'].map((mode) => (
+              <button
+                key={mode}
+                id={`question-mode-${mode}`}
+                type="button"
+                onClick={() => onQuestionModeChange?.(mode)}
+                aria-pressed={questionMode === mode}
+                className={`text-left p-3 rounded-lg border transition-colors ${
+                  questionMode === mode
+                    ? 'border-teal-500/40 bg-teal-500/15'
+                    : 'border-border-subtle bg-surface-1 hover:bg-surface-2'
+                }`}
+              >
+                <span className={`block text-sm font-600 ${questionMode === mode ? 'text-teal-400' : 'text-text-2'}`}>
+                  {copy.studySetup.questionModes[mode].title}
+                </span>
+                <span className="block text-xs text-text-3 mt-1 leading-relaxed">
+                  {copy.studySetup.questionModes[mode].description}
+                </span>
+              </button>
+            ))}
+          </div>
+          {questionMode === 'mixed' && safeQuestionCount === 1 && (
+            <p className="mt-2 text-xs text-gold-400">{copy.studySetup.mixedSingleQuestionHint}</p>
           )}
         </fieldset>
 

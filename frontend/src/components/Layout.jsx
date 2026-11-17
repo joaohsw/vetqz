@@ -527,6 +527,11 @@ function AccountSidebar({
                         planned: session.planned_question_count,
                       })}
                     </p>
+                    {session.question_mode && copy.layout.studyHistoryModes?.[session.question_mode] && (
+                      <p className="mt-1 text-[11px] text-text-3">
+                        {copy.layout.studyHistoryModes[session.question_mode]}
+                      </p>
+                    )}
                     {legacyScoreNotice(session, language) && <p className="mt-2 text-xs text-text-3" role="status">{legacyScoreNotice(session, language)}</p>}
                     {session.topic_titles.length > 0 && (
                       <p className="mt-1 text-[11px] leading-relaxed text-text-3">
@@ -544,6 +549,7 @@ function AccountSidebar({
                           topicTitles: session.topic_titles,
                           plannedQuestionCount: session.planned_question_count,
                           difficulty: session.difficulty,
+                          questionMode: session.question_mode || 'descriptive',
                           feedbackMode: session.feedback_mode,
                           studySessionId: session.id,
                           resumeFromBeginning: session.status === 'completed',
@@ -551,6 +557,10 @@ function AccountSidebar({
                             id: attempt.id,
                             question: attempt.question,
                             referenceAnswer: attempt.reference_answer,
+                            questionType: attempt.question_type || 'descriptive',
+                            options: attempt.options || [],
+                            correctOptionId: attempt.correct_option_id || null,
+                            selectedOptionId: attempt.selected_option_id || null,
                             topicTitle: attempt.topic_title,
                             questionPosition: attempt.question_position,
                             sourceExcerpt: attempt.source_excerpt,
@@ -565,6 +575,10 @@ function AccountSidebar({
                               question: session.last_attempt.question,
                               id: session.last_attempt.id,
                               referenceAnswer: session.last_attempt.reference_answer,
+                              questionType: session.last_attempt.question_type || 'descriptive',
+                              options: session.last_attempt.options || [],
+                              correctOptionId: session.last_attempt.correct_option_id || null,
+                              selectedOptionId: session.last_attempt.selected_option_id || null,
                               topicTitle: session.last_attempt.topic_title,
                               questionPosition: session.last_attempt.question_position,
                               sourceExcerpt: session.last_attempt.source_excerpt,

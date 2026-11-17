@@ -7,6 +7,11 @@ from pydantic import BaseModel, Field
 from app.schemas.difficulty import DEFAULT_DIFFICULTY, Difficulty
 from app.schemas.language import DEFAULT_LANGUAGE, SupportedLanguage
 from app.schemas.pdf import SourceReference
+from app.schemas.question_type import (
+    DEFAULT_QUESTION_TYPE,
+    MultipleChoiceOption,
+    QuestionType,
+)
 
 
 class EvaluateAnswerRequest(BaseModel):
@@ -47,6 +52,22 @@ class EvaluateAnswerResponse(BaseModel):
         description="Orientação curta para a próxima tentativa",
     )
     model_answer: str = Field(..., description="Resposta exemplar completa")
+    question_type: QuestionType = Field(
+        DEFAULT_QUESTION_TYPE,
+        description="Formato da pergunta avaliada",
+    )
+    options: list[MultipleChoiceOption] = Field(
+        default_factory=list,
+        description="Alternativas da questão quando question_type é multiple_choice",
+    )
+    correct_option_id: str | None = Field(
+        default=None,
+        description="ID da alternativa correta em múltipla escolha",
+    )
+    selected_option_id: str | None = Field(
+        default=None,
+        description="ID da alternativa selecionada pelo aluno em múltipla escolha",
+    )
     source: SourceReference | None = Field(
         None,
         description="Trecho e página que fundamentaram a pergunta",
