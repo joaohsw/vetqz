@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" sizes="any" href="/favicon.svg?v=2" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>vetQz — Projeto Acadêmico Binacional COIL (UFSM × UST)</title>
+    <meta
+      name="description"
+      content="Apresentação acadêmica do vetQz: sistema bilíngue de apoio ao estudo de Anatomia Veterinária com IA, desenvolvido na parceria COIL 2026 entre UFSM e UST."
+    />
+
+    <!-- Apply saved theme before first paint to avoid a dark/light flash -->
+    <script>
+      (function () {
+        try {
+          if (window.localStorage.getItem('vetqz-theme') === 'light') {
+            document.documentElement.classList.add('light');
+          }
+        } catch (e) {}
+      })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/landing/main.jsx"></script>
+  </body>
+</html>
