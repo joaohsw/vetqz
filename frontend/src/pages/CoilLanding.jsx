@@ -56,8 +56,30 @@ function getInitials(name) {
   return name.slice(0, 2).toUpperCase();
 }
 
-function VideoSlot({ src, poster, fallbackText, pendingTitle, pendingDescription }) {
+function VideoSlot({
+  src,
+  youtubeEmbedUrl,
+  title,
+  poster,
+  fallbackText,
+  pendingTitle,
+  pendingDescription,
+}) {
   const [unavailable, setUnavailable] = useState(false);
+
+  if (youtubeEmbedUrl) {
+    return (
+      <iframe
+        src={youtubeEmbedUrl}
+        title={title}
+        loading="lazy"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        referrerPolicy="strict-origin-when-cross-origin"
+        allowFullScreen
+        className="w-full aspect-video rounded-lg bg-surface-0 block border-0"
+      />
+    );
+  }
 
   if (unavailable) {
     return (
@@ -459,6 +481,8 @@ export default function CoilLanding() {
               <div className="card-elevated p-2.5 sm:p-3 overflow-hidden">
                 <VideoSlot
                   src={copy.demo.videoSrc}
+                  youtubeEmbedUrl={copy.demo.youtubeEmbedUrl}
+                  title={copy.demo.title}
                   poster={copy.demo.posterSrc}
                   fallbackText={copy.demo.fallbackText}
                   pendingTitle={copy.demo.pendingTitle}
@@ -513,6 +537,8 @@ export default function CoilLanding() {
               <div className="overflow-hidden rounded-xl border border-border-default bg-surface-0">
                 <VideoSlot
                   src={copy.about.videoSrc}
+                  youtubeEmbedUrl={copy.about.youtubeEmbedUrl}
+                  title={copy.about.makingOfTitle}
                   poster={copy.about.posterSrc}
                   fallbackText={copy.demo.fallbackText}
                   pendingTitle={copy.about.pendingTitle}
