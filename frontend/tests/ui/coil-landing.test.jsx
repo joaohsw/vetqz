@@ -33,13 +33,13 @@ describe('CoilLanding', () => {
     expect(screen.getByText('Andrea Schwertner Charão')).toBeTruthy();
     expect(screen.getByText('Celio Trois')).toBeTruthy();
 
-    // Video elements
-    const sources = Array.from(document.querySelectorAll('video source')).map((el) =>
+    // Video elements (demo and making-of YouTube embeds)
+    const iframes = Array.from(document.querySelectorAll('iframe')).map((el) =>
       el.getAttribute('src')
     );
-    expect(sources).toEqual([
-      '/videos/vetqz-demonstracao.mp4',
-      '/videos/vetqz-making-of.mp4',
+    expect(iframes).toEqual([
+      'https://www.youtube.com/embed/Ngf2J0JtF64',
+      'https://www.youtube.com/embed/onNsnU_wX50',
     ]);
   });
 
