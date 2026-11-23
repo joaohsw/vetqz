@@ -7,7 +7,10 @@ SEGURANÇA — Prompt Injection Defense:
 - O modelo recebe instruções para NUNCA executar comandos ou revelar prompts internos.
 """
 
+import asyncio
 import json
+import logging
+import math
 import random
 import re
 from xml.sax.saxutils import escape
@@ -26,18 +29,129 @@ from app.schemas.language import (
 from app.schemas.question_type import DEFAULT_QUESTION_TYPE, QuestionType
 from app.services.topic_cache import valid_translation
 
+logger = logging.getLogger(__name__)
+
 # Client e configuração compartilhados
 _client = genai.Client(api_key=settings.gemini_api_key)
 _model_name = "gemini-3.5-flash-lite"
+_fallback_models = (
+    "gemini-3.5-flash-lite",
+    "gemini-flash-lite-latest",
+    "gemini-3.1-flash-lite",
+    "gemini-4-hydrogen",
+    "gemini-3.5-flash-lite",
+    "gemini-flash-lite-latest",
+)
+_MAX_TOPIC_BLOCKS = 20
+_MAX_TOPIC_PROMPT_CHARS = 8000
 _generation_config = types.GenerateContentConfig(
     max_output_tokens=2048,
     response_mime_type="application/json",
 )
 
 _topic_generation_config = types.GenerateContentConfig(
-    max_output_tokens=8192,
+    max_output_tokens=3072,
     response_mime_type="application/json",
 )
+
+
+def _is_transient_capacity_error(error: Exception) -> bool:
+    """Detecta erros temporários de sobrecarga/alta demanda (503/UNAVAILABLE) da API Gemini."""
+    text = str(error).lower()
+    return any(
+        marker in text
+        for marker in (
+            "503",
+            "unavailable",
+            "high demand",
+            "overloaded",
+            "temporarily unavailable",
+            "resource_exhausted",
+            "429",
+        )
+    )
+
+
+async def _generate_content_with_fallback(
+    *,
+    contents: str,
+    config: types.GenerateContentConfig,
+):
+    """Chama o Gemini com retry e fallback de modelo apenas em falhas 503/sobrecarga."""
+    last_error: Exception | None = None
+    for attempt_index, model_name in enumerate(_fallback_models):
+        try:
+            return await _client.aio.models.generate_content(
+                model=model_name,
+                contents=contents,
+                config=config,
+            )
+        except Exception as error:
+            last_error = error
+            if not _is_transient_capacity_error(error) or attempt_index == len(_fallback_models) - 1:
+                raise
+            logger.warning(
+                "Gemini model %s unavailable on attempt %d (%s); retrying with fallback",
+                model_name,
+                attempt_index + 1,
+                error,
+            )
+            await asyncio.sleep(0.6 * (attempt_index + 1))
+    raise last_error  # pragma: no cover
+
+
+def _compact_chunks_for_topic_analysis(
+    chunks: list[dict],
+    max_blocks: int = _MAX_TOPIC_BLOCKS,
+    max_prompt_chars: int = _MAX_TOPIC_PROMPT_CHARS,
+) -> list[dict]:
+    """
+    Agrupa e resume trechos de PDFs grandes para evitar prompts massivos que sofrem
+    503 UNAVAILABLE na análise de tópicos, preservando todos os chunk_indices originais.
+    """
+    if not chunks:
+        return []
+
+    total_chars = sum(len(str(chunk.get("text", ""))) for chunk in chunks)
+    if len(chunks) <= max_blocks and total_chars <= max_prompt_chars:
+        return chunks
+
+    group_size = max(1, math.ceil(len(chunks) / max_blocks))
+    grouped: list[dict] = []
+    for start in range(0, len(chunks), group_size):
+        group = chunks[start:start + group_size]
+        combined_indices = sorted({
+            index
+            for item in group
+            for index in item.get("chunk_indices", [])
+        })
+        if len(group) == 1:
+            sample_text = str(group[0].get("text", "")).strip()
+        else:
+            samples = [str(group[0].get("text", "")).strip()[:220]]
+            if len(group) > 2:
+                mid = str(group[len(group) // 2].get("text", "")).strip()[:160]
+                if mid:
+                    samples.append(mid)
+            last = str(group[-1].get("text", "")).strip()[:160]
+            if last:
+                samples.append(last)
+            sample_text = " ... ".join(part for part in samples if part)
+
+        grouped.append({
+            "text": sample_text,
+            "chunk_indices": combined_indices,
+            "page_number": group[0].get("page_number"),
+        })
+
+    per_block_budget = max(180, max_prompt_chars // max(1, len(grouped)))
+    for block in grouped:
+        text = block["text"]
+        if len(text) > per_block_budget:
+            half = (per_block_budget - 5) // 2
+            block["text"] = f"{text[:half].rstrip()} ... {text[-half:].lstrip()}"
+
+    return grouped
 
 
 def _with_instructions(instructions: str) -> types.GenerateContentConfig:
@@ -360,8 +474,7 @@ async def generate_question(
         difficulty_guidance=QUESTION_DIFFICULTY_GUIDANCE[difficulty],
     )
     # Sem escape: o source_excerpt precisa ser cópia literal do texto do PDF.
-    response = await _client.aio.models.generate_content(
-        model=_model_name,
+    response = await _generate_content_with_fallback(
         contents=f"<context>\n{context}\n</context>",
         config=_with_instructions(instructions),
     )
@@ -410,22 +523,22 @@ async def analyze_topics(
     language: SupportedLanguage = DEFAULT_LANGUAGE,
 ) -> dict:
     """Uma análise bilíngue sobre texto sem overlap, com índices originais."""
+    compacted_chunks = _compact_chunks_for_topic_analysis(chunks)
     indexed_chunks = "\n\n".join(
-        f"--- TRECHOS {', '.join('#' + str(index) for index in chunk['chunk_indices'])} ---\n{escape(chunk['text'])}"
-        for chunk in chunks
+        f"--- TRECHOS {', '.join('#' + str(index) for index in (chunk['chunk_indices'][:1] if len(chunk['chunk_indices']) > 4 else chunk['chunk_indices']))} ---\n{escape(chunk['text'])}"
+        for chunk in compacted_chunks
     )
     prompt = TOPIC_ANALYSIS_PROMPT.format(
         indexed_chunks=indexed_chunks,
     )
-    response = await _client.aio.models.generate_content(
-        model=_model_name,
+    response = await _generate_content_with_fallback(
         contents=prompt,
         config=_topic_generation_config,
     )
     parsed = _parse_json_response(response.text, language)
     if type(parsed.get("is_veterinary")) is not bool:
         raise ValueError(api_message(language, "invalid_content_classification"))
-    aliases = {index: chunk["chunk_indices"] for chunk in chunks for index in chunk["chunk_indices"]}
+    aliases = {index: chunk["chunk_indices"] for chunk in compacted_chunks for index in chunk["chunk_indices"]}
     total_chunks = max(aliases, default=-1) + 1
     raw_topics = parsed.get("topics")
     if not isinstance(raw_topics, list):
@@ -477,8 +590,8 @@ async def translate_topic_metadata(topics: list[dict], language: SupportedLangua
         'Responda apenas JSON: {"topics": [{"id": "topic-1", "title": "...", "summary": "..."}]}.\n'
         f"<topics>{escape(json.dumps(source, ensure_ascii=False))}</topics>"
     )
-    response = await _client.aio.models.generate_content(
-        model=_model_name, contents=prompt, config=_topic_generation_config,
+    response = await _generate_content_with_fallback(
+        contents=prompt, config=_topic_generation_config,
     )
     raw = _parse_json_response(response.text, language).get("topics")
     if not isinstance(raw, list):
@@ -532,8 +645,7 @@ async def evaluate_answer(
         f"<student_answer>\n{escape(json.dumps(student_answer, ensure_ascii=False))}\n</student_answer>\n\n"
         f"{EVALUATION_REQUEST}"
     )
-    response = await _client.aio.models.generate_content(
-        model=_model_name,
+    response = await _generate_content_with_fallback(
         contents=contents,
         config=_with_instructions(instructions),
     )

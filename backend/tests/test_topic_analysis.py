@@ -245,6 +245,40 @@ class TopicEndpointTests(unittest.TestCase):
         self.assertIn("#1, #2", prompt)
         self.assertNotIn("Ossos ....", prompt)
 
+    def test_large_pdf_compacts_topic_prompt_and_expands_all_chunk_indices(self):
+        self.db.document["chunks"] = [
+            {
+                "text": f"Capítulo {idx // 10 + 1}: Osteologia e artrologia veterinária detalhada do segmento {idx}. " * 12,
+                "page_number": idx + 1,
+            }
+            for idx in range(240)
+        ]
+        model = copy.deepcopy(MODEL_ANALYSIS)
+        model["topics"][0]["chunk_indices"] = [0]
+        self.model.return_value = SimpleNamespace(text=json.dumps(model))
+
+        response = self.analyze()
+        self.assertEqual(response.status_code, 200, response.text)
+        prompt = self.model.call_args.kwargs["contents"]
+        self.assertLess(len(prompt), 12000)
+        self.assertEqual(response.json()["topics"][0]["chunk_indices"], list(range(12)))
+
+    def test_transient_503_high_demand_retries_with_fallback_model(self):
+        self.model.side_effect = [
+            RuntimeError(
+                "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand.', 'status': 'UNAVAILABLE'}}"
+            ),
+            SimpleNamespace(text=json.dumps(MODEL_ANALYSIS)),
+        ]
+        with patch("app.services.gemini_service.asyncio.sleep", new=AsyncMock()):
+            response = self.analyze()
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(self.model.await_count, 2)
+        first_model = self.model.call_args_list[0].kwargs["model"]
+        second_model = self.model.call_args_list[1].kwargs["model"]
+        self.assertEqual(first_model, "gemini-3.5-flash-lite")
+        self.assertNotEqual(first_model, second_model)
+
 
 if __name__ == "__main__":
     unittest.main()
